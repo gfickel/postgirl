@@ -8,12 +8,11 @@ This idea came from my insatisfaction with Postman lately. The native app someti
 This is definitely a toy project of mine. I do indeed pretend to use it on a daily basis, therefore it must be somewhat functional and easy to use however it is being a playground for tests. Those are some guidelines that I'm trying to follow:
 
 * Minimal external dependencies. Having to install libcurl appart is really bugging me...
-* Minimal STL usage: STL is great but it also comes with some costs that are usually ignored such as (sometimes greatly) increased compilation time and horrible stack traces to follow on debug.
+* Minimal STL usage: STL is great but it also comes with some costs that are usually ignored such as (sometimes greatly) increased compilation time and horrible stack traces to follow on debug. For example, I added both thread and vector and the main.cpp compilation went from 600ms to 1000ms :( . Looking to remove those on the near future.
 * NEVER loose GUI responsiveness
 * Cross plataform code: everything here should work on Mac, Windows and Linux.
 * Simple code without excessive abstractions
 
-Software in general is 
 
 ## Used libs
 I'm using the excelent [Dear ImGui](https://github.com/ocornut/imgui) for GUI, created using the [Immediate Mode Gui](https://www.youtube.com/watch?v=Z1qyvQsjK5Y) architecture. It is a very easy intuitive way to create GUIs, so I suggest that you take a look if you don't know about it.
