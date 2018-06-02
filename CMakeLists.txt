@@ -11,8 +11,9 @@ include_directories("include/"
 					"third_party/json/"
                     )
 
-file(GLOB all_annotator_src
-	"src/main.cpp"
+file(GLOB all_postgirl_src
+    "src/main.cpp"
+    "src/pgstring.h"
 	"third_party/imgui/*.cpp"
 	"third_party/imgui/*.h"
 	"third_party/json/*.cpp"
@@ -24,5 +25,5 @@ find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
 
-add_executable(postgirl ${all_annotator_src})
+add_executable(postgirl ${all_postgirl_src})
 target_link_libraries(postgirl GL ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})

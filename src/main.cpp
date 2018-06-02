@@ -8,46 +8,42 @@
 #include "GL/gl3w.h"    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
 #include <GLFW/glfw3.h>
 #include <curl/curl.h>
+#include "pgstring.h"
 
-
-typedef struct Buffer {
-    char buf[4098];
-} Buffer;
 
 typedef struct Argument { 
-    std::string name;
-    void* value_ptr;
+    pg::String name;
+    pg::String value;
     int arg_type; // TODO: transform this to an ENUM soon!!!!
 } Argument; 
 
 
 typedef struct History {
-    std::string url;
+    pg::String url;
     std::vector<Argument> args;
-    std::string result;
+    pg::String result;
     int response_code;
 } History;
 
 
 
+// void removeHistory(std::vector<History>& history, int idx) {
+//     for (int i=0; i<(int)history[idx].args.size(); i++) {
+//         free(history[idx].args[i].value_ptr); 
+//     }
+//     history.erase(history.begin() + idx);
+// }
 
-void removeHistory(std::vector<History>& history, int idx) {
-    for (int i=0; i<(int)history[idx].args.size(); i++) {
-        free(history[idx].args[i].value_ptr); 
-    }
-    history.erase(history.begin() + idx);
-}
 
-
-template <typename T>
-Argument createArgument(std::string name, const T& val, int argType) {
-    Argument arg;
-    arg.name = name;
-    arg.value_ptr = (void*)malloc(sizeof(T));
-    arg.arg_type = argType;
-
-    return arg;
-}
+// template <typename T>
+// Argument createArgument(pg::String name, const T& val, int argType) {
+//     Argument arg;
+//     arg.name = name;
+//     arg.value_ptr = (void*)malloc(sizeof(T));
+//     arg.arg_type = argType;
+// 
+//     return arg;
+// }
 
 
 typedef struct MemoryStruct {
@@ -76,7 +72,7 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 
-void threadRequestGet(std::atomic<bool>& request_done, CURL* curl, CURLcode& res, const char* buf, std::string& thread_result, int& response_code) { 
+void threadRequestGet(std::atomic<bool>& request_done, CURL* curl, CURLcode& res, const char* buf, pg::String& thread_result, int& response_code) { 
     MemoryStruct chunk;
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
     curl_easy_setopt(curl, CURLOPT_URL, buf);
@@ -87,16 +83,16 @@ void threadRequestGet(std::atomic<bool>& request_done, CURL* curl, CURLcode& res
     
     //curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "name=daniel&project=curl");
     res = curl_easy_perform(curl);
-    std::string response_body;
+    pg::String response_body;
     long resp_code;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &resp_code);
     response_code = (int)resp_code;
     if(res != CURLE_OK) {
-        thread_result = std::string(curl_easy_strerror(res));
-        if(chunk.size > 0) thread_result = std::string(chunk.memory); 
+        thread_result = pg::String(curl_easy_strerror(res));
+        if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
     } else {
-        thread_result = std::string("All ok");
-        if(chunk.size > 0) thread_result = std::string(chunk.memory); 
+        thread_result = pg::String("All ok");
+        if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
     }
     request_done = true;
 }
@@ -134,7 +130,7 @@ int main(int argc, char* argv[])
     CURL *curl;
     CURLcode res;
     std::atomic<bool> request_done(false);
-    std::string thread_result;
+    pg::String thread_result;
     int response_code;
     std::thread thread;
 
@@ -165,11 +161,13 @@ int main(int argc, char* argv[])
 
             const char* items[] = {"GET", "POST"};
             static int request_type = 0;
+            static std::vector<Argument> args;
+            
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
             ImGui::Combo("", &request_type, items, IM_ARRAYSIZE(items));
             ImGui::SameLine();
 
-            static char buf[4098] = "";
+            static char buf[4098] = "http://dev.meerkat.com.br:2000/version";
             static bool process_request = false;
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
             if (ImGui::InputText("URL", buf, IM_ARRAYSIZE(buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
@@ -177,14 +175,14 @@ int main(int argc, char* argv[])
                 process_request = true; 
             }
 
-            static std::string result;
+            static pg::String result;
             if (process_request) {
                 if (curl) {
-                    result = thread_result = std::string("Processing...");
+                    thread_result = pg::String("Processing...");
+                    result = thread_result;
                     History hist;
-                    hist.url = std::string(buf);
-                    hist.result = std::string("");
-                    //hist.args =
+                    hist.url = pg::String(buf);
+                    hist.args = args;
                     history.push_back(hist);
                     switch(request_type) { 
                         case 0: 
@@ -194,7 +192,7 @@ int main(int argc, char* argv[])
                             thread = std::thread(threadRequestGet, std::ref(request_done), curl, std::ref(res), buf, std::ref(thread_result), std::ref(response_code));
                             break;
                         default:
-                            result = thread_result = std::string("Invalid request type selected!");
+                            result = thread_result = pg::String("Invalid request type selected!");
                             request_done = true;
                     }
                 }
@@ -202,24 +200,37 @@ int main(int argc, char* argv[])
                 process_request = false;
             }
 
-            static std::vector<Argument> curr_args;
-            static std::vector<Buffer> args_buffers;
-
-
-            if (curr_args.size() == 0) {
-                Argument arg = createArgument(std::string("TestArgument"), std::string("Test"), 0);
-                curr_args.push_back(arg);
-                Buffer b;
-                b.buf[0] = '\0';
-                args_buffers.push_back(b);
-            }
-
-            for (int i=0; i<(int)curr_args.size(); i++) {
+            static std::vector<int> delete_arg_btn;
+            for (int i=0; i<(int)args.size(); i++) {
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
-                ImGui::Combo("", &curr_args[i].arg_type, arg_types[request_type], IM_ARRAYSIZE(arg_types[request_type])); 
+                ImGui::Combo("", &args[i].arg_type, arg_types[request_type], IM_ARRAYSIZE(arg_types[request_type])); 
                 ImGui::SameLine();
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
-                ImGui::InputText("Argument", args_buffers[i].buf, IM_ARRAYSIZE(args_buffers[i].buf));
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.8);
+                char arg_name[32];
+                sprintf(arg_name, "Arg %d", i);
+                ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity());
+                ImGui::SameLine();
+                char btn_name[32];
+                sprintf(btn_name, "Delete %d", i);
+                if (ImGui::Button(btn_name)) {
+                    delete_arg_btn.push_back(i);
+                }
+            }
+            
+            // delete the args
+            for (int i=(int)delete_arg_btn.size(); i>0; i--) {
+                args.erase(args.begin()+delete_arg_btn[i-1]);
+            }
+            delete_arg_btn.clear();
+
+            if (ImGui::Button("Add Argument")) {
+                Argument arg;
+                arg.arg_type = 0;
+                args.push_back(arg);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Delete all args")) {
+                args.clear();
             }
 
             ImGui::Text("Result");
@@ -231,7 +242,7 @@ int main(int argc, char* argv[])
                 thread.join();
                 request_done = false;
             }
-            ImGui::InputTextMultiline("##source", &result[0], result.size(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputTextMultiline("##source", &result[0], result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
             ImGui::PopTextWrapPos();
 
             ImGui::End();
