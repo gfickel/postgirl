@@ -11,6 +11,12 @@
 #include "pgstring.h"
 
 
+typedef enum ThreadStatus {
+    IDLE     = 0,
+    RUNNING  = 1,
+    FINISHED = 2
+} ThreadStatus;
+
 typedef struct Argument { 
     pg::String name;
     pg::String value;
@@ -73,10 +79,11 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 
-void threadRequestGet(std::atomic<bool>& request_done, const char* buf, 
-                      const std::vector<Argument>& args, const std::vector<Argument>& headers, 
+void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
+                      std::vector<Argument> args, std::vector<Argument> headers, 
                       pg::String& thread_result, int& response_code) 
 { 
+    
     CURLcode res;
     CURL* curl;
     curl = curl_easy_init();
@@ -84,8 +91,6 @@ void threadRequestGet(std::atomic<bool>& request_done, const char* buf,
     MemoryStruct chunk;
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
     
-    pg::String url(8196);
-    url.set(buf);
     if (args.size() > 0) url.append("?");
     for (int i=0; i<(int)args.size(); i++) {
         char* escaped_name = curl_easy_escape(curl , args[i].name.buf_, args[i].name.length());
@@ -109,7 +114,7 @@ void threadRequestGet(std::atomic<bool>& request_done, const char* buf,
         res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_chunk);
         if (res != CURLE_OK) {
             thread_result = "Problem setting header!";
-            request_done = true;
+            thread_status = FINISHED;
             curl_easy_cleanup(curl);
             return;
         }
@@ -133,8 +138,35 @@ void threadRequestGet(std::atomic<bool>& request_done, const char* buf,
         thread_result = pg::String("All ok");
         if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
     }
-    request_done = true;
+    thread_status = FINISHED;
     curl_easy_cleanup(curl);
+}
+
+
+void processRequest(std::thread& thread, const char* buf, 
+                    std::vector<History>& history, const std::vector<Argument>& args, 
+                    const std::vector<Argument>& headers,int request_type, 
+                    std::atomic<ThreadStatus>& thread_status)
+{
+    if (thread_status == RUNNING)
+        return;
+    History hist;
+    hist.url = pg::String(buf);
+    hist.args = args;
+    hist.result = pg::String("Processing");
+    pg::String url(buf);
+    history.push_back(hist);
+
+    switch(request_type) { 
+        case 0:
+            thread_status = RUNNING;
+            thread = std::thread(threadRequestGet, std::ref(thread_status), url, args, headers, std::ref(history.back().result), std::ref(hist.response_code));
+            break;
+        default:
+            hist.result = pg::String("Invalid request type selected!");
+            thread_status = FINISHED;
+    }
+
 }
 
 
@@ -168,9 +200,7 @@ int main(int argc, char* argv[])
 
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-    std::atomic<bool> request_done(false);
-    pg::String thread_result;
-    int response_code;
+    std::atomic<ThreadStatus> thread_status(IDLE); // syncronize thread to call join only when it finishes
     std::thread thread;
 
     // Such ugly code... Can I do something like this?
@@ -199,42 +229,19 @@ int main(int argc, char* argv[])
             static int request_type = 0;
             static std::vector<Argument> args;
             static std::vector<Argument> headers;
+            static pg::String result;
             
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
             ImGui::Combo("", &request_type, items, IM_ARRAYSIZE(items));
             ImGui::SameLine();
 
             static char buf[4098] = "http://localhost:5000/test_route";
-            static bool process_request = false;
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
             if (ImGui::InputText("URL", buf, IM_ARRAYSIZE(buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
-                process_request = true; 
+                processRequest(thread, buf, history, args, headers, request_type, thread_status);
             }
 
-            static pg::String result;
-            if (process_request) {
-                thread_result = pg::String("Processing...");
-                result = thread_result;
-                History hist;
-                hist.url = pg::String(buf);
-                hist.args = args;
-                history.push_back(hist);                    
-
-                switch(request_type) { 
-                    case 0: 
-                        thread = std::thread(threadRequestGet, std::ref(request_done), buf, std::ref(args), std::ref(headers), std::ref(thread_result), std::ref(response_code));
-                        break;
-                    case 1:
-                        thread = std::thread(threadRequestGet, std::ref(request_done), buf, std::ref(args), std::ref(headers), std::ref(thread_result), std::ref(response_code));
-                        break;
-                    default:
-                        result = thread_result = pg::String("Invalid request type selected!");
-                        request_done = true;
-                }
-         
-                process_request = false;
-            }
 
             static std::vector<int> delete_arg_btn;
             for (int i=0; i<(int)headers.size(); i++) {
@@ -242,12 +249,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    process_request = true;
+                    processRequest(thread, buf, history, args, headers, request_type, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    process_request = true;
+                    processRequest(thread, buf, history, args, headers, request_type, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##header arg delete%d", i);
@@ -274,12 +281,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    process_request = true;
+                    processRequest(thread, buf, history, args, headers, request_type, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    process_request = true;
+                    processRequest(thread, buf, history, args, headers, request_type, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##arg delete%d", i);
@@ -288,32 +295,37 @@ int main(int argc, char* argv[])
                 }
             }
             
-            // delete the args
-            for (int i=(int)delete_arg_btn.size(); i>0; i--) {
-                args.erase(args.begin()+delete_arg_btn[i-1]);
-            }
-            delete_arg_btn.clear();
-
             if (ImGui::Button("Add Argument")) {
                 Argument arg;
                 arg.arg_type = 0;
                 args.push_back(arg);
             }
             ImGui::SameLine();
-            if (ImGui::Button("Delete all args")) {
+            
+            // delete the args
+            if (thread_status != RUNNING) {
+                for (int i=(int)delete_arg_btn.size(); i>0; i--) {
+                    args.erase(args.begin()+delete_arg_btn[i-1]);
+                }
+            }
+            delete_arg_btn.clear();
+            if (ImGui::Button("Delete all args") && thread_status != RUNNING) {
                 args.clear();
             }
 
             ImGui::Text("Result");
             ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + 500);
-            if (request_done) {
-                result = thread_result;
-                history.back().result = result;
-                history.back().response_code = response_code;
+            if (thread_status == FINISHED) {
                 thread.join();
-                request_done = false;
+                thread_status = IDLE;
             }
-            ImGui::InputTextMultiline("##source", &result[0], result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            if (history.size() > 0)
+                ImGui::InputTextMultiline("##source", &history.back().result[0], history.back().result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            else {
+                char blank[] = "";
+                ImGui::InputTextMultiline("##source", blank, 0, ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            }
+
             ImGui::PopTextWrapPos();
 
             ImGui::End();
