@@ -241,11 +241,13 @@ int main(int argc, char* argv[])
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
-                ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity());
+                if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
+                    process_request = true;
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
-                ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity());
+                if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
+                    process_request = true;
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##header arg delete%d", i);
@@ -271,11 +273,13 @@ int main(int argc, char* argv[])
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
-                ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity());
+                if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
+                    process_request = true;
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##arg name%d", i);
-                ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity());
+                if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
+                    process_request = true;
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##arg delete%d", i);
