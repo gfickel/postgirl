@@ -61,9 +61,40 @@ public:
         return *this;
     }
 
+    inline void set(const char* str)
+    {
+        int size = strlen(str)+1;
+        if (size >= capacity_)
+            realloc(size+1);
+            
+        memcpy(buf_, str, (size_t)size * sizeof(char));
+    }
+
+    inline void append(const char* str, int size=-1)
+    {
+        if (size<0) size = strlen(str)+1;
+        int curr_len = strlen(buf_);
+
+        if (curr_len + size > capacity_) realloc(curr_len+size+1);
+        memcpy(buf_+curr_len, str, size);
+    }
+
+    inline void append(String str)
+    {
+        append(str.buf_);
+    }
+
+    inline void realloc(int size)
+    {
+        if (buf_) free(buf_);
+        capacity_ = size;
+        buf_ = (char*)malloc((size_t)capacity_ * sizeof(char));
+    }
+
     inline int              capacity() const            { return capacity_; }
     inline char&            operator[](int i)           { assert(i < capacity_); return buf_[i]; }
     inline const char&      operator[](int i) const     { assert(i < capacity_); return buf_[i]; }
+    inline int              length() const              { return strlen(buf_); }
 
     int capacity_;
     char* buf_;
