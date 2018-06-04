@@ -1,7 +1,6 @@
 #include <thread>
 #include <atomic>
 #include <stdio.h>
-#include <vector>
 #include "json/json.h"
 #include "imgui.h"
 #include "imgui_impl_glfw_gl3.h"
@@ -9,7 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <curl/curl.h>
 #include "pgstring.h"
-
+#include "pgvector.h"
 
 typedef enum ThreadStatus {
     IDLE     = 0,
@@ -26,15 +25,15 @@ typedef struct Argument {
 
 typedef struct History {
     pg::String url;
-    std::vector<Argument> args;
-    std::vector<pg::String> headers;
+    pg::Vector<Argument> args;
+    pg::Vector<pg::String> headers;
     pg::String result;
     int response_code;
 } History;
 
 
 
-// void removeHistory(std::vector<History>& history, int idx) {
+// void removeHistory(pg::Vector<History>& history, int idx) {
 //     for (int i=0; i<(int)history[idx].args.size(); i++) {
 //         free(history[idx].args[i].value_ptr); 
 //     }
@@ -50,8 +49,7 @@ typedef struct History {
 //     arg.arg_type = argType;
 // 
 //     return arg;
-// }
-
+// } 
 
 typedef struct MemoryStruct {
     MemoryStruct() { memory = (char*)malloc(1); size=0; };
@@ -80,7 +78,7 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 
 
 void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
-                      std::vector<Argument> args, std::vector<Argument> headers, 
+                      pg::Vector<Argument> args, pg::Vector<Argument> headers, 
                       pg::String& thread_result, int& response_code) 
 { 
     
@@ -144,8 +142,8 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
 
 
 void processRequest(std::thread& thread, const char* buf, 
-                    std::vector<History>& history, const std::vector<Argument>& args, 
-                    const std::vector<Argument>& headers,int request_type, 
+                    pg::Vector<History>& history, const pg::Vector<Argument>& args, 
+                    const pg::Vector<Argument>& headers,int request_type, 
                     std::atomic<ThreadStatus>& thread_status)
 {
     if (thread_status == RUNNING)
@@ -206,7 +204,7 @@ int main(int argc, char* argv[])
 
     // Such ugly code... Can I do something like this?
     // char** arg_types[] = { {"Text", "File"}, "Text" }; 
-    std::vector<const char**> arg_types;
+    pg::Vector<const char**> arg_types;
     // POST
     const char* post_types[] = {"Text", "File"};
     // GET
@@ -214,7 +212,7 @@ int main(int argc, char* argv[])
     arg_types.push_back(post_types);
     arg_types.push_back(get_types);
 
-    std::vector<History> history;
+    pg::Vector<History> history;
     curl_global_init(CURL_GLOBAL_ALL);
 
     // Main loop
@@ -228,8 +226,8 @@ int main(int argc, char* argv[])
 
             const char* items[] = {"GET", "POST"};
             static int request_type = 0;
-            static std::vector<Argument> args;
-            static std::vector<Argument> headers;
+            static pg::Vector<Argument> args;
+            static pg::Vector<Argument> headers;
             static pg::String result;
             
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
@@ -244,7 +242,7 @@ int main(int argc, char* argv[])
             }
 
 
-            static std::vector<int> delete_arg_btn;
+            static pg::Vector<int> delete_arg_btn;
             for (int i=0; i<(int)headers.size(); i++) {
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
                 char arg_name[32];
