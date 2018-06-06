@@ -8,16 +8,11 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -std=c++11 -O3")
 include_directories("include/"
 					"third_party/imgui/"
                     "third_party/gl3w/"
-					"third_party/json/"
                     )
 
 file(GLOB all_postgirl_src
     "src/main.cpp"
-    "src/pgstring.h"
 	"third_party/imgui/*.cpp"
-	"third_party/imgui/*.h"
-	"third_party/json/*.cpp"
-    "third_party/json/*.h"
     "third_party/gl3w/GL/gl3w.c"
 )
 

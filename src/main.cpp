@@ -1,7 +1,6 @@
 #include <thread>
 #include <atomic>
 #include <stdio.h>
-#include "json/json.h"
 #include "imgui.h"
 #include "imgui_impl_glfw_gl3.h"
 #include "GL/gl3w.h"    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
@@ -320,8 +319,8 @@ int main(int argc, char* argv[])
         {
             ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_NoMove);
 
-            const char* items[] = {"GET", "POST"};
-            const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
+            static const char* items[] = {"GET", "POST"};
+            static const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
             static int request_type = 0;
             static int content_type = 0;
             static pg::String content_type_str;
@@ -449,7 +448,9 @@ int main(int argc, char* argv[])
                 block_height /= 2;
                 static pg::String input_json(1024*32); // 32KB static string should be reasonable
                 ImGui::InputTextMultiline("##input_json", &input_json[0], input_json.capacity(), ImVec2(-1.0f, block_height), ImGuiInputTextFlags_AllowTabInput);
-                
+                // auto reader = Json::CharReader();
+                // Json::Value root;
+                // bool good = reader.parse(input_json.buf_, input_json.buf_+input_json.length(), &root, 
             }
 
             ImGui::Text("Result");
