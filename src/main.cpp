@@ -153,22 +153,28 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
 
 void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, pg::String& thread_result, int& response_code) 
+                      pg::String contentType, const pg::String& inputJson, 
+                      pg::String& thread_result, int& response_code) 
 { 
 
     CURL *curl;
     CURLcode res;
     MemoryStruct chunk;
 
-    if (args.size() < 0) {
+    if (args.size() == 0 && inputJson.length() == 0) {
         thread_result = "No argument passed for POST";
         thread_status = FINISHED;
         return;
     }
 
     struct WriteThis wt;
-    wt.readptr = args[0].value.buf_;
-    wt.sizeleft = args[0].value.length();
+    if (args.size() == 0) {
+        wt.readptr = inputJson.buf_;
+        wt.sizeleft = inputJson.length();
+    } else {
+        wt.readptr = args[0].value.buf_;
+        wt.sizeleft = args[0].value.length();
+    }
 
     /* In windows, this will init the winsock stuff */ 
     res = curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -234,7 +240,7 @@ void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url,
 void processRequest(std::thread& thread, const char* buf, 
                     pg::Vector<History>& history, const pg::Vector<Argument>& args, 
                     const pg::Vector<Argument>& headers, int request_type, 
-                    const pg::String& contentType,
+                    const pg::String& contentType, const pg::String& inputJson,
                     std::atomic<ThreadStatus>& thread_status)
 {
     if (thread_status == RUNNING)
@@ -256,7 +262,7 @@ void processRequest(std::thread& thread, const char* buf,
             thread = std::thread(threadRequestGet, std::ref(thread_status), url, args, headers, contentType, std::ref(history.back().result), std::ref(hist.response_code));
             break;
         case 1:
-            thread = std::thread(threadRequestPost, std::ref(thread_status), url, args, headers, contentType, std::ref(history.back().result), std::ref(hist.response_code));
+            thread = std::thread(threadRequestPost, std::ref(thread_status), url, args, headers, contentType, inputJson, std::ref(history.back().result), std::ref(hist.response_code));
             break;
         default:
             hist.result = pg::String("Invalid request type selected!");
@@ -307,6 +313,8 @@ int main(int argc, char* argv[])
     const char* get_types[] = {"Text"};
     arg_types.push_back(post_types);
     arg_types.push_back(get_types);
+    
+    pg::String input_json(1024*32); // 32KB static string should be reasonable
 
     pg::Vector<History> history;
     curl_global_init(CURL_GLOBAL_ALL);
@@ -364,7 +372,7 @@ int main(int argc, char* argv[])
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
             if (ImGui::InputText("URL", buf, IM_ARRAYSIZE(buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
-                processRequest(thread, buf, history, args, headers, request_type, content_type_str, thread_status);
+                processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
             }
 
 
@@ -374,12 +382,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, thread_status);
+                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, thread_status);
+                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##header arg delete%d", i);
@@ -406,12 +414,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, thread_status);
+                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, thread_status);
+                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##arg delete%d", i);
@@ -444,7 +452,6 @@ int main(int argc, char* argv[])
             }
             
             if (request_type == 1 && content_type == 1) {
-                static pg::String input_json(1024*32); // 32KB static string should be reasonable
                 ImGui::Text("Input JSON");
                 rapidjson::Document d;
                 if (d.Parse(input_json.buf_).HasParseError() && input_json.length() > 0) {
