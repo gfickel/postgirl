@@ -8,6 +8,7 @@
 #include <curl/curl.h>
 #include "pgstring.h"
 #include "pgvector.h"
+#include "rapidjson/document.h"
 
 typedef enum ThreadStatus {
     IDLE     = 0,
@@ -443,14 +444,16 @@ int main(int argc, char* argv[])
             }
             
             if (request_type == 1 && content_type == 1) {
+                static pg::String input_json(1024*32); // 32KB static string should be reasonable
                 ImGui::Text("Input JSON");
+                rapidjson::Document d;
+                if (d.Parse(input_json.buf_).HasParseError() && input_json.length() > 0) {
+                    ImGui::SameLine();
+                    ImGui::Text("Problems with JSON");
+                }
                 int block_height = ImGui::GetContentRegionAvail()[1];
                 block_height /= 2;
-                static pg::String input_json(1024*32); // 32KB static string should be reasonable
                 ImGui::InputTextMultiline("##input_json", &input_json[0], input_json.capacity(), ImVec2(-1.0f, block_height), ImGuiInputTextFlags_AllowTabInput);
-                // auto reader = Json::CharReader();
-                // Json::Value root;
-                // bool good = reader.parse(input_json.buf_, input_json.buf_+input_json.length(), &root, 
             }
 
             ImGui::Text("Result");
