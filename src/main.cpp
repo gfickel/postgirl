@@ -272,6 +272,11 @@ void processRequest(std::thread& thread, const char* buf,
 
 }
 
+int compareSize(const void* A, const void* B)
+{
+    return strcmp(((pg::String*)A)->buf_, ((pg::String*)B)->buf_);
+}
+
 
 static void glfw_error_callback(int error, const char* description)
 {
@@ -515,6 +520,9 @@ int main(int argc, char* argv[])
                 if (curr_dir.capacity_ < 2048) curr_dir.realloc(2048);
                 realpath(aux_dir.buf_, curr_dir.buf_);
                 closedir(dir);
+
+                qsort(curr_folders.begin(), curr_folders.size(), sizeof(*curr_folders.begin()), compareSize);
+                qsort(curr_files.begin(), curr_files.size(), sizeof(*curr_files.begin()), compareSize);
             }
 
             
