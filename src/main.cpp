@@ -9,6 +9,7 @@
 #include "pgstring.h"
 #include "pgvector.h"
 #include "rapidjson/document.h"
+#include "dirent_portable.h"
 
 typedef enum ThreadStatus {
     IDLE     = 0,
@@ -311,8 +312,14 @@ int main(int argc, char* argv[])
     pg::Vector<const char**> arg_types;
     const char* post_types[] = {"Text", "File"};
     const char* get_types[] = {"Text"};
-    arg_types.push_back(post_types);
     arg_types.push_back(get_types);
+    arg_types.push_back(post_types);
+    pg::Vector<int> num_arg_types;
+    num_arg_types.push_back(1);
+    num_arg_types.push_back(2);
+
+    bool picking_file = false;
+    int curr_arg_file = 0;
     
     pg::String input_json(1024*32); // 32KB static string should be reasonable
 
@@ -325,6 +332,8 @@ int main(int argc, char* argv[])
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
+        static pg::Vector<Argument> args;
+
         {
             ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_NoMove);
 
@@ -333,7 +342,6 @@ int main(int argc, char* argv[])
             static int request_type = 0;
             static int content_type = 0;
             static pg::String content_type_str;
-            static pg::Vector<Argument> args;
             static pg::Vector<Argument> headers;
             static pg::String result;
            
@@ -408,7 +416,8 @@ int main(int argc, char* argv[])
 
             for (int i=0; i<(int)args.size(); i++) {
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
-                ImGui::Combo("", &args[i].arg_type, arg_types[request_type], IM_ARRAYSIZE(arg_types[request_type])); 
+                ImGui::Text("request_type: %d", request_type);
+                ImGui::Combo("", &args[i].arg_type, arg_types[request_type], num_arg_types[request_type]);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
                 char arg_name[32];
@@ -416,14 +425,26 @@ int main(int argc, char* argv[])
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
                     processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.6);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
                     processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
+                if (args[i].arg_type == 1) {
+                    sprintf(arg_name, "File##arg name%d", i);
+                    if (ImGui::Button(arg_name)) {
+                        picking_file = true;
+                        curr_arg_file = i;
+                    }
+                }
+                ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##arg delete%d", i);
                 if (ImGui::Button(btn_name)) {
+                    if (curr_arg_file == i) {
+                        curr_arg_file = -1;
+                        picking_file = false;
+                    }
                     delete_arg_btn.push_back(i);
                 }
             }
@@ -472,6 +493,59 @@ int main(int argc, char* argv[])
             }
 
 
+            ImGui::End();
+        }
+        if (picking_file) {
+            ImGui::Begin("File Selector", &picking_file);
+            static pg::Vector<pg::String> curr_files;
+            static pg::Vector<pg::String> curr_folders;
+            static pg::String curr_dir(".");
+            if (curr_files.size() == 0 && curr_folders.size()==0) {
+                DIR *dir;
+                dirent *pdir;
+                dir=opendir(curr_dir.buf_);
+                while((pdir=readdir(dir))) {
+                    if (pdir->d_type == DT_DIR) {
+                        curr_folders.push_back(pdir->d_name);
+                    } else if (pdir->d_type == DT_REG) {
+                        curr_files.push_back(pdir->d_name);
+                    }
+                }
+                pg::String aux_dir = curr_dir;
+                if (curr_dir.capacity_ < 2048) curr_dir.realloc(2048);
+                realpath(aux_dir.buf_, curr_dir.buf_);
+                closedir(dir);
+            }
+
+            
+            // ImGui::Text(curr_dir.buf_);
+            ImGui::Button(curr_dir.buf_);
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, (ImVec4)ImColor::HSV(4/7.0f, 0.6f, 0.6f));
+            for (int i=0; i<curr_folders.size(); i++) {
+                if (ImGui::MenuItem(curr_folders[i].buf_, NULL)) {
+                    curr_dir.append("/");
+                    curr_dir.append(curr_folders[i]);
+                    curr_files.clear();
+                    curr_folders.clear();
+                }
+            }
+            ImGui::PopStyleColor();
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, (ImVec4)ImColor::HSV(2/7.0f, 0.6f, 0.6f));
+            for (int i=0; i<curr_files.size(); i++) {
+                if (ImGui::MenuItem(curr_files[i].buf_, NULL)) {
+                    if (curr_arg_file >= 0 && curr_arg_file < args.size()) {
+                        pg::String filename = curr_dir;
+                        filename.append("/");
+                        filename.append(curr_files[i]);
+                        args[curr_arg_file].value = filename;
+                        printf("args[%d].value = %s\n", curr_arg_file, filename.buf_);
+                    }                    
+
+                    picking_file = false;
+                    curr_arg_file = -1;
+                }
+            }
+            ImGui::PopStyleColor(1);
             ImGui::End();
         }
         
