@@ -15,8 +15,8 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 * Simple code without excessive abstractions
 
 ## Future Features
-* Add a JSON input field that says if it is a valid JSON on the fly
-* Add support to POST
+* ~~Add a JSON input field that says if it is a valid JSON on the fly~~
+* ~~Add support to POST~~
 * Add support to multipart/form-data
 * Save and show the user history
 * Add a search function
@@ -24,7 +24,8 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 * Add request templates
 
 ## Future Code Changes
-* Substitute the stl vector for a modified ImGui::Vector implementation
+* ~~Substitute the stl vector for a modified ImGui::Vector implementation~~
+* ~~Substitute the stdl string for a lighteight version closer to char*~~
 * Find a small multi platform threading library (perhaps extend [stb.h](https://github.com/nothings/stb/) to use Posix on Linux/Mac). Then we will get rid of stl thread, hopefully gain some compilation time and drop the C++11 requirement :)
 
 ## Used libs
@@ -41,3 +42,11 @@ apt-get install libglfw3 libglfw3-dev libcurl4-openssl-dev
 
 All of those dependencies are available both on Windows and Mac but I don't have the time to check how to install them, unfortunately :(.
 
+## Build
+```sh
+mkdir build
+cmake -DCMAKE_BUILD_TYPE=RELEASE ../
+make
+```
+
+The binary will be on postgirl/bin folder.
