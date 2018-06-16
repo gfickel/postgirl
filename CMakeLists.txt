@@ -11,7 +11,7 @@ include_directories("third_party/"
                     )
 
 file(GLOB all_postgirl_src
-    "src/main.cpp"
+    "src/*.cpp"
 	"third_party/imgui/*.cpp"
     "third_party/gl3w/GL/gl3w.c"
 )

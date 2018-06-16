@@ -5,237 +5,13 @@
 #include "imgui_impl_glfw_gl3.h"
 #include "GL/gl3w.h"    // This example is using gl3w to access OpenGL functions (because it is small). You may use glew/glad/glLoadGen/etc. whatever already works for you.
 #include <GLFW/glfw3.h>
-#include <curl/curl.h>
 #include "pgstring.h"
 #include "pgvector.h"
 #include "rapidjson/document.h"
 #include "dirent_portable.h"
-
-typedef enum ThreadStatus {
-    IDLE     = 0,
-    RUNNING  = 1,
-    FINISHED = 2
-} ThreadStatus;
-
-typedef struct Argument { 
-    pg::String name;
-    pg::String value;
-    int arg_type; // TODO: transform this to an ENUM soon!!!!
-} Argument; 
+#include "requests.h"
 
 
-typedef struct History {
-    pg::String url;
-    pg::Vector<Argument> args;
-    pg::Vector<Argument> headers;
-    pg::String result;
-    int response_code;
-} History;
-
-
-struct WriteThis {
-  const char *readptr;
-  size_t sizeleft;
-};
- 
-static size_t read_callback(void *dest, size_t size, size_t nmemb, void *userp)
-{
-  struct WriteThis *wt = (struct WriteThis *)userp;
-  size_t buffer_size = size*nmemb;
- 
-  if(wt->sizeleft) {
-    /* copy as much as possible from the source to the destination */ 
-    size_t copy_this_much = wt->sizeleft;
-    if(copy_this_much > buffer_size)
-      copy_this_much = buffer_size;
-    memcpy(dest, wt->readptr, copy_this_much);
- 
-    wt->readptr += copy_this_much;
-    wt->sizeleft -= copy_this_much;
-    return copy_this_much; /* we copied this many bytes */ 
-  }
- 
-  return 0; /* no more data left to deliver */ 
-}
-
-
-typedef struct MemoryStruct {
-    MemoryStruct() { memory = (char*)malloc(1); size=0; };
-    
-    char *memory;
-    size_t size;
-} MemoryStruct;
- 
-static size_t
-WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-    size_t realsize = size * nmemb;
-    struct MemoryStruct *mem = (struct MemoryStruct *)userp;
-    mem->memory = (char*)realloc(mem->memory, mem->size + realsize + 1);
-    if(mem->memory == NULL) {
-        /* out of memory! */
-        return 0;
-    }
-
-    memcpy(&(mem->memory[mem->size]), contents, realsize);
-    mem->size += realsize;
-    mem->memory[mem->size] = 0;
-    
-    return realsize;
-}
-
-
-void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
-                      pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, pg::String& thread_result, int& response_code) 
-{ 
-    
-    CURLcode res;
-    CURL* curl;
-    curl = curl_easy_init();
-
-    MemoryStruct chunk;
-    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
-    
-    if (args.size() > 0) url.append("?");
-    for (int i=0; i<(int)args.size(); i++) {
-        char* escaped_name = curl_easy_escape(curl , args[i].name.buf_, args[i].name.length());
-        url.append(escaped_name);
-        url.append("=");
-        char* escaped_value = curl_easy_escape(curl , args[i].value.buf_, args[i].value.length());
-        url.append(escaped_value);
-        if (i < (int)args.size()-1) url.append("&");
-    }
-
-    struct curl_slist *header_chunk = NULL;
-    if (contentType.length() > 0) {
-        pg::String aux("Content-Type: ");
-        aux.append(contentType);
-        header_chunk = curl_slist_append(header_chunk, aux.buf_);
-    }
-    for (int i=0; i<(int)headers.size(); i++) {
-        pg::String header(headers[i].name);
-        if (headers[i].name.length() > 0) header.append(": ");
-        header.append(headers[i].value);
-        header_chunk = curl_slist_append(header_chunk, header.buf_);
-    }
-    if (header_chunk) {
-        res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_chunk);
-        if (res != CURLE_OK) {
-            thread_result = "Problem setting header!";
-            thread_status = FINISHED;
-            curl_easy_cleanup(curl);
-            return;
-        }
-    }
-    
-    
-    curl_easy_setopt(curl, CURLOPT_URL, url.buf_);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
-
-    res = curl_easy_perform(curl);
-    pg::String response_body;
-    long resp_code;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &resp_code);
-    response_code = (int)resp_code;
-    if(res != CURLE_OK) {
-        thread_result = pg::String(curl_easy_strerror(res));
-        if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
-    } else {
-        thread_result = pg::String("All ok");
-        if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
-    }
-    thread_status = FINISHED;
-    curl_easy_cleanup(curl);
-}
-
-
-void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 
-                      pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, const pg::String& inputJson, 
-                      pg::String& thread_result, int& response_code) 
-{ 
-
-    CURL *curl;
-    CURLcode res;
-    MemoryStruct chunk;
-
-    if (args.size() == 0 && inputJson.length() == 0) {
-        thread_result = "No argument passed for POST";
-        thread_status = FINISHED;
-        return;
-    }
-
-    struct WriteThis wt;
-    if (args.size() == 0) {
-        wt.readptr = inputJson.buf_;
-        wt.sizeleft = inputJson.length();
-    } else {
-        wt.readptr = args[0].value.buf_;
-        wt.sizeleft = args[0].value.length();
-    }
-
-    /* In windows, this will init the winsock stuff */ 
-    res = curl_global_init(CURL_GLOBAL_DEFAULT);
-    /* Check for errors */ 
-    if(res != CURLE_OK) {
-        thread_result = curl_easy_strerror(res);
-        thread_status = FINISHED;
-        return;
-    }
-
-    /* get a curl handle */ 
-    curl = curl_easy_init();
-    if(curl) {
-        struct curl_slist *header_chunk = NULL;
-        if (contentType.length() > 0) {
-            pg::String aux("Content-Type: ");
-            aux.append(contentType);
-            header_chunk = curl_slist_append(header_chunk, aux.buf_);
-        }
-        for (int i=0; i<(int)headers.size(); i++) {
-            pg::String header(headers[i].name);
-            if (headers[i].name.length() > 0) header.append(": ");
-            header.append(headers[i].value);
-            header_chunk = curl_slist_append(header_chunk, header.buf_);
-        }
-        if (header_chunk) {
-            res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, header_chunk);
-            if (res != CURLE_OK) {
-                thread_result = "Problem setting header!";
-                thread_status = FINISHED;
-                curl_easy_cleanup(curl);
-                return;
-            }
-        }
-        curl_easy_setopt(curl, CURLOPT_URL, url.buf_);
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
-        curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
-        curl_easy_setopt(curl, CURLOPT_READDATA, &wt);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
-        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)wt.sizeleft);
-
-        res = curl_easy_perform(curl);
-        long resp_code;
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &resp_code);
-        response_code = (int)resp_code;
-
-        if(res != CURLE_OK) {
-            thread_result = pg::String(curl_easy_strerror(res));
-            if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
-        } else {
-            thread_result = pg::String("All ok");
-            if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
-        }
-        /* always cleanup */ 
-        curl_easy_cleanup(curl);
-    }
-    thread_status = FINISHED;
-}
 
 
 void processRequest(std::thread& thread, const char* buf, 
@@ -259,10 +35,10 @@ void processRequest(std::thread& thread, const char* buf,
     thread_status = RUNNING;
 
     switch(request_type) { 
-        case 0:
+        case GET:
             thread = std::thread(threadRequestGet, std::ref(thread_status), url, args, headers, contentType, std::ref(history.back().result), std::ref(hist.response_code));
             break;
-        case 1:
+        case POST:
             thread = std::thread(threadRequestPost, std::ref(thread_status), url, args, headers, contentType, inputJson, std::ref(history.back().result), std::ref(hist.response_code));
             break;
         default:
@@ -324,6 +100,7 @@ int main(int argc, char* argv[])
     num_arg_types.push_back(2);
 
     bool picking_file = false;
+    bool show_history = true;
     int curr_arg_file = 0;
     
     pg::String input_json(1024*32); // 32KB static string should be reasonable
@@ -528,8 +305,9 @@ int main(int argc, char* argv[])
             
             // ImGui::Text(curr_dir.buf_);
             ImGui::Button(curr_dir.buf_);
-            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, (ImVec4)ImColor::HSV(4/7.0f, 0.6f, 0.6f));
             for (int i=0; i<curr_folders.size(); i++) {
+                ImVec2 pos = ImGui::GetCursorScreenPos();
+                ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(pos.x, pos.y), ImVec2(pos.x + ImGui::GetContentRegionAvail()[0], pos.y + ImGui::GetTextLineHeight()), IM_COL32(100,0,255,50));
                 if (ImGui::MenuItem(curr_folders[i].buf_, NULL)) {
                     curr_dir.append("/");
                     curr_dir.append(curr_folders[i]);
@@ -537,9 +315,9 @@ int main(int argc, char* argv[])
                     curr_folders.clear();
                 }
             }
-            ImGui::PopStyleColor();
-            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, (ImVec4)ImColor::HSV(2/7.0f, 0.6f, 0.6f));
             for (int i=0; i<curr_files.size(); i++) {
+                ImVec2 pos = ImGui::GetCursorScreenPos();
+                ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(pos.x, pos.y), ImVec2(pos.x + ImGui::GetContentRegionAvail()[0], pos.y + ImGui::GetTextLineHeight()), IM_COL32(100,100,0,50));
                 if (ImGui::MenuItem(curr_files[i].buf_, NULL)) {
                     if (curr_arg_file >= 0 && curr_arg_file < args.size()) {
                         pg::String filename = curr_dir;
@@ -553,7 +331,18 @@ int main(int argc, char* argv[])
                     curr_arg_file = -1;
                 }
             }
-            ImGui::PopStyleColor(1);
+            ImGui::End();
+        }
+        if (show_history) {
+            ImGui::Begin("History", &show_history);
+            static int selected  = -1;
+            for (int i=0; i<history.size(); i++) {
+                char select_name[2048];
+                sprintf(select_name, "(%s) %s##%d", RequestTypeToString(history[i].req_type).buf_, history[i].url.buf_, i);
+                if (ImGui::Selectable(select_name, selected==i)) {
+                    selected = i;
+                }
+            }
             ImGui::End();
         }
         
