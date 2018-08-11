@@ -40,7 +40,13 @@ For Linux (Ubuntu):
 apt-get install libglfw3 libglfw3-dev libcurl4-openssl-dev
 ```
 
-All of those dependencies are available both on Windows and Mac but I don't have the time to check how to install them, unfortunately :(.
+On Mac:
+```sh
+brew install glfw3
+brew install curl --with-openssl
+``
+
+All of those dependencies are available on Windows but I don't have the time to check how to install them, unfortunately :(.
 
 ## Build
 ```sh
