@@ -32,8 +32,11 @@ typedef struct History {
     pg::String url;
     pg::Vector<Argument> args;
     pg::Vector<Argument> headers;
+    pg::String input_json;
     pg::String result;
     RequestType req_type;
+    int content_type;
+    pg::String content_type_str;
     pg::String collection;
     struct tm proc_date;
     int response_code;

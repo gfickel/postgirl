@@ -17,7 +17,7 @@
 void processRequest(std::thread& thread, const char* buf, 
                     pg::Vector<History>& history, const pg::Vector<Argument>& args, 
                     const pg::Vector<Argument>& headers, int request_type, 
-                    const pg::String& contentType, const pg::String& inputJson,
+                    int contentType, const pg::String& contentTypeStr, const pg::String& inputJson,
                     std::atomic<ThreadStatus>& thread_status)
 {
     if (thread_status == RUNNING)
@@ -27,7 +27,11 @@ void processRequest(std::thread& thread, const char* buf,
     hist.url = pg::String(buf);
     hist.args = args;
     hist.headers = headers;
+    hist.input_json = inputJson;
     hist.result = pg::String("Processing");
+    hist.content_type_str = contentTypeStr;
+    hist.content_type = contentType;
+    hist.req_type = (RequestType)request_type;
     pg::String url(buf);
     history.push_back(hist);
 
@@ -36,10 +40,10 @@ void processRequest(std::thread& thread, const char* buf,
 
     switch(request_type) { 
         case GET:
-            thread = std::thread(threadRequestGet, std::ref(thread_status), url, args, headers, contentType, std::ref(history.back().result), std::ref(hist.response_code));
+            thread = std::thread(threadRequestGet, std::ref(thread_status), url, args, headers, contentTypeStr, std::ref(history.back().result), std::ref(hist.response_code));
             break;
         case POST:
-            thread = std::thread(threadRequestPost, std::ref(thread_status), url, args, headers, contentType, inputJson, std::ref(history.back().result), std::ref(hist.response_code));
+            thread = std::thread(threadRequestPost, std::ref(thread_status), url, args, headers, contentTypeStr, inputJson, std::ref(history.back().result), std::ref(hist.response_code));
             break;
         default:
             hist.result = pg::String("Invalid request type selected!");
@@ -103,9 +107,10 @@ int main(int argc, char* argv[])
     bool show_history = true;
     int curr_arg_file = 0;
     
-    pg::String input_json(1024*32); // 32KB static string should be reasonable
 
-    pg::Vector<History> history;
+    pg::Vector<pg::Vector<History>> collection;
+    collection.push_back(pg::Vector<History>());
+    int curr_history = 0;
     curl_global_init(CURL_GLOBAL_ALL);
 
     // Main loop
@@ -114,18 +119,19 @@ int main(int argc, char* argv[])
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
+        static const char* items[] = {"GET", "POST"};
+        static const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
+        static int request_type = 0;
+        static int content_type = 0;
+        static pg::String content_type_str;
+        static pg::Vector<Argument> headers;
+        static pg::String result;
         static pg::Vector<Argument> args;
+        static pg::String input_json(1024*32); // 32KB static string should be reasonable
 
         {
             ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_NoMove);
 
-            static const char* items[] = {"GET", "POST"};
-            static const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
-            static int request_type = 0;
-            static int content_type = 0;
-            static pg::String content_type_str;
-            static pg::Vector<Argument> headers;
-            static pg::String result;
            
 
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.125);
@@ -162,7 +168,7 @@ int main(int argc, char* argv[])
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
             if (ImGui::InputText("URL", buf, IM_ARRAYSIZE(buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
-                processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
+                processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
             }
 
 
@@ -172,12 +178,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##header arg delete%d", i);
@@ -198,19 +204,20 @@ int main(int argc, char* argv[])
 
             for (int i=0; i<(int)args.size(); i++) {
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
-                ImGui::Text("request_type: %d", request_type);
-                ImGui::Combo("", &args[i].arg_type, arg_types[request_type], num_arg_types[request_type]);
+                char combo_name[32];
+                sprintf(combo_name, "##combo arg type%d", i);
+                ImGui::Combo(combo_name, &args[i].arg_type, arg_types[request_type], num_arg_types[request_type]);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.6);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, history, args, headers, request_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
                 ImGui::SameLine();
                 if (args[i].arg_type == 1) {
                     sprintf(arg_name, "File##arg name%d", i);
@@ -267,8 +274,8 @@ int main(int argc, char* argv[])
             }
 
             ImGui::Text("Result");
-            if (history.size() > 0)
-                ImGui::InputTextMultiline("##source", &history.back().result[0], history.back().result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            if (collection[curr_history].size() > 0)
+                ImGui::InputTextMultiline("##source", &collection[curr_history].back().result[0], collection[curr_history].back().result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
             else {
                 char blank[] = "";
                 ImGui::InputTextMultiline("##source", blank, 0, ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
@@ -333,14 +340,23 @@ int main(int argc, char* argv[])
             }
             ImGui::End();
         }
+
         if (show_history) {
             ImGui::Begin("History", &show_history);
             static int selected  = -1;
-            for (int i=0; i<history.size(); i++) {
+            for (int i=0; i<collection[curr_history].size(); i++) {
                 char select_name[2048];
-                sprintf(select_name, "(%s) %s##%d", RequestTypeToString(history[i].req_type).buf_, history[i].url.buf_, i);
+                sprintf(select_name, "(%s) %s##%d", RequestTypeToString(collection[curr_history][i].req_type).buf_, collection[curr_history][i].url.buf_, i);
                 if (ImGui::Selectable(select_name, selected==i)) {
                     selected = i;
+                    request_type = collection[curr_history][i].req_type;
+                    content_type = collection[curr_history][i].content_type;
+                    content_type_str = collection[curr_history][i].content_type_str;
+                    headers = collection[curr_history][i].headers;
+                    result = collection[curr_history][i].result;
+                    args = collection[curr_history][i].args;
+                    input_json = collection[curr_history][i].input_json;
+                    
                 }
             }
             ImGui::End();
