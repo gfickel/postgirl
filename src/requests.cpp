@@ -55,12 +55,14 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 
 void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, pg::String& thread_result, int& response_code) 
+                      ContentType contentTypeEnum, pg::String& thread_result, int& response_code) 
 { 
-    
     CURLcode res;
     CURL* curl;
     curl = curl_easy_init();
+
+
+    pg::String contentType = ContentTypeToString(contentTypeEnum); 
 
     MemoryStruct chunk;
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
@@ -97,7 +99,6 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
         }
     }
     
-    
     curl_easy_setopt(curl, CURLOPT_URL, url.buf_);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
@@ -122,13 +123,14 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
 
 void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, const pg::String& inputJson, 
+                      ContentType contentTypeEnum, const pg::String& inputJson, 
                       pg::String& thread_result, int& response_code) 
 { 
-
     CURL *curl;
     CURLcode res;
     MemoryStruct chunk;
+    
+    pg::String contentType = ContentTypeToString(contentTypeEnum); 
 
     if (args.size() == 0 && inputJson.length() == 0) {
         thread_result = "No argument passed for POST";
@@ -216,4 +218,13 @@ pg::String RequestTypeToString(RequestType req) {
         case PUT:       return pg::String("PUT");
     }
     return pg::String("UNDEFINED");
+}
+
+
+pg::String ContentTypeToString(ContentType ct) {
+    switch(ct) {
+        case MULTIPART_FORMDATA:   return pg::String("multipart/form-data");
+        case APPLICATION_JSON:     return pg::String("application/json");
+    }
+    return pg::String("<NONE>");
 }

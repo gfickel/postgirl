@@ -17,7 +17,7 @@
 void processRequest(std::thread& thread, const char* buf, 
                     pg::Vector<History>& history, const pg::Vector<Argument>& args, 
                     const pg::Vector<Argument>& headers, int request_type, 
-                    int contentType, const pg::String& contentTypeStr, const pg::String& inputJson,
+                    ContentType contentType, const pg::String& inputJson,
                     std::atomic<ThreadStatus>& thread_status)
 {
     if (thread_status == RUNNING)
@@ -29,28 +29,199 @@ void processRequest(std::thread& thread, const char* buf,
     hist.headers = headers;
     hist.input_json = inputJson;
     hist.result = pg::String("Processing");
-    hist.content_type_str = contentTypeStr;
     hist.content_type = contentType;
     hist.req_type = (RequestType)request_type;
-    pg::String url(buf);
+    time_t t = time(NULL);
+    struct tm* ptm = gmtime(&t);
+    char date_buf[128];
+    if (strftime(date_buf, 128, "%B %d, %Y; %H:%M:%S\n", ptm) == 0)
+        hist.process_time = pg::String("");
+    else
+        hist.process_time = pg::String("");
     history.push_back(hist);
-
     
     thread_status = RUNNING;
 
     switch(request_type) { 
         case GET:
-            thread = std::thread(threadRequestGet, std::ref(thread_status), url, args, headers, contentTypeStr, std::ref(history.back().result), std::ref(hist.response_code));
+            thread = std::thread(threadRequestGet, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, std::ref(history.back().result), std::ref(history.back().response_code));
             break;
         case POST:
-            thread = std::thread(threadRequestPost, std::ref(thread_status), url, args, headers, contentTypeStr, inputJson, std::ref(history.back().result), std::ref(hist.response_code));
+            thread = std::thread(threadRequestPost, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, history.back().input_json, std::ref(history.back().result), std::ref(hist.response_code));
             break;
         default:
-            hist.result = pg::String("Invalid request type selected!");
+            history.back().result = pg::String("Invalid request type selected!");
             thread_status = FINISHED;
     }
 
 }
+
+
+pg::Vector<Collection> loadCollection(const pg::String& filename) 
+{
+    pg::Vector<Collection> collection_vec;
+    Collection empty_col;
+    FILE* fid = fopen(filename.buf_, "r");
+    if (fid == NULL) 
+    {
+        collection_vec.push_back(empty_col);
+        return collection_vec;
+    }
+    long file_size_signed;
+    if (fseek(fid, 0, SEEK_END) || (file_size_signed = ftell(fid)) == -1 || fseek(fid, 0, SEEK_SET))
+    {
+        fclose(fid);
+        collection_vec.push_back(empty_col);
+        return collection_vec;
+    }
+
+    char* buffer = (char*)malloc(sizeof(char)*file_size_signed);
+    if (fread(buffer, sizeof(char), file_size_signed, fid) != file_size_signed) 
+    {
+        fclose(fid);
+        collection_vec.push_back(empty_col);
+        return collection_vec;
+    }
+
+    long bytes_read = 0;
+    char line[32*1024];
+    while (bytes_read < file_size_signed)
+    {
+        bytes_read += sscanf(buffer+bytes_read, "[%s]\n", line);
+        if (strcmp(line, "Collection") == 0) {
+            Collection col;
+            int col_size;
+            bytes_read += sscanf(buffer+bytes_read, "Name:%s\n", line);
+            col.name.set(line);
+            bytes_read += sscanf(buffer+bytes_read, "Size:%d\n", &col_size);
+            for (int i=0; i<col_size; i++) {
+                History hist;
+                int req_type, content_type, response_code, vec_size;
+                bytes_read += sscanf(buffer+bytes_read, "[%s]\n", line); // ignore....
+                bytes_read += sscanf(buffer+bytes_read, "Url:%s\n", line);
+                hist.url.set(line);
+                bytes_read += sscanf(buffer+bytes_read, "InputJson:%s\n", line);
+                hist.input_json.set(line);
+                bytes_read += sscanf(buffer+bytes_read, "Result:%s\n", line);
+                hist.url.set(line);
+                bytes_read += sscanf(buffer+bytes_read, "RequestType:%d\n", &req_type);
+                hist.req_type = (RequestType)req_type;
+                bytes_read += sscanf(buffer+bytes_read, "ContentType:%d\n", &content_type);
+                hist.content_type = (ContentType)content_type;
+                bytes_read += sscanf(buffer+bytes_read, "ProcessTime:%s\n", line);
+                hist.process_time.set(line);
+                bytes_read += sscanf(buffer+bytes_read, "ResponseCode:%d\n", &response_code);
+                hist.response_code = response_code;
+                
+                bytes_read += sscanf(buffer+bytes_read, "ArgumentsSize:%d\n", &vec_size);
+                for (int j=0; j<vec_size; j++) {
+                    Argument arg;
+                    int arg_type;
+                    bytes_read += sscanf(buffer+bytes_read, "[%s]\n", line); // ignore....
+                    bytes_read += sscanf(buffer+bytes_read, "Name:%s\n", line);
+                    arg.name.set(line);
+                    bytes_read += sscanf(buffer+bytes_read, "Value:%s\n", line);
+                    arg.value.set(line);
+                    bytes_read += sscanf(buffer+bytes_read, "ArgumentType:%d\n", &arg_type);
+                    arg.arg_type = arg_type;
+                    hist.args.push_back(arg);
+                    hist.headers.push_back(arg);
+                    bytes_read += 1; // discarding \n
+                }
+
+                bytes_read += sscanf(buffer+bytes_read, "HeadersSize:%d\n", &vec_size);
+                for (int j=0; j<vec_size; j++) {
+                    Argument arg;
+                    int arg_type;
+                    bytes_read += sscanf(buffer+bytes_read, "[%s]\n", line); // ignore....
+                    bytes_read += sscanf(buffer+bytes_read, "Name:%s\n", line);
+                    arg.name.set(line);
+                    bytes_read += sscanf(buffer+bytes_read, "Value:%s\n", line);
+                    arg.value.set(line);
+                    bytes_read += sscanf(buffer+bytes_read, "ArgumentType:%d\n", &arg_type);
+                    arg.arg_type = arg_type;
+                    hist.headers.push_back(arg);
+                    bytes_read += 1; // discarding \n
+                }
+                col.hist.push_back(hist);
+                bytes_read += 1; // discarding \n
+            }
+            bytes_read += 1; // discarding \n
+            collection_vec.push_back(col);
+        }
+    }
+
+
+    fclose(fid);
+    free(buffer);
+    return collection_vec;
+}
+
+void saveCollection(const pg::Vector<Collection>& collection, const pg::String& filename) 
+{
+    FILE* fid = fopen(filename.buf_, "w");
+    if (fid == NULL) return;
+    
+    static char line[32*1028];
+    for (int i=0; i<collection.size(); i++) {
+        sprintf(line, "[%s]\n", "Collection");
+        sprintf(line, "Name:%s\n", collection[i].name.buf_);
+        fwrite(line, sizeof(char), strlen(line), fid);
+        sprintf(line, "Size:%d\n", collection[i].hist.size());
+        fwrite(line, sizeof(char), strlen(line), fid);
+        for (int j=0; j<collection[i].hist.size(); j++) {
+            sprintf(line, "[%s]\n", "History");
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "Url:%s\n", collection[i].hist[j].url.buf_);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "InputJson:%s\n", collection[i].hist[j].input_json.buf_);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "Result:%s\n", collection[i].hist[j].result.buf_);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "RequestType:%d\n", (int)collection[i].hist[j].req_type);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "ContentType:%d\n", (int)collection[i].hist[j].content_type);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "ProcessTime:%s\n", collection[i].hist[j].process_time.buf_);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            sprintf(line, "ResponseCode:%d\n", collection[i].hist[j].response_code);
+            fwrite(line, sizeof(char), strlen(line), fid);
+            
+            sprintf(line, "ArgumentsSize:%d\n", collection[i].hist[j].args.size());
+            fwrite(line, sizeof(char), strlen(line), fid);
+            for (int k=0; k<collection[i].hist[j].args.size(); k++) {
+                sprintf(line, "[%s]\n", "Argument");
+                fwrite(line, sizeof(char), strlen(line), fid);
+                sprintf(line, "Name:%s\n", collection[i].hist[j].args[k].name.buf_);
+                fwrite(line, sizeof(char), strlen(line), fid);
+                sprintf(line, "Value:%s\n", collection[i].hist[j].args[k].value.buf_);
+                fwrite(line, sizeof(char), strlen(line), fid);
+                sprintf(line, "ArgumentType:%d\n", (int)collection[i].hist[j].args[k].arg_type);
+                fwrite(line, sizeof(char), strlen(line), fid);
+                fwrite("/n", sizeof(char), 1, fid);
+            }
+
+            sprintf(line, "HeadersSize:%d\n", collection[i].hist[j].headers.size());
+            fwrite(line, sizeof(char), strlen(line), fid);
+            for (int k=0; k<collection[i].hist[j].headers.size(); k++) {
+                sprintf(line, "[%s]\n", "Header");
+                fwrite(line, sizeof(char), strlen(line), fid);
+                sprintf(line, "Name:%s\n", collection[i].hist[j].args[k].name.buf_);
+                fwrite(line, sizeof(char), strlen(line), fid);
+                sprintf(line, "Value:%s\n", collection[i].hist[j].args[k].value.buf_);
+                fwrite(line, sizeof(char), strlen(line), fid);
+                sprintf(line, "ArgumentType:%d\n", (int)collection[i].hist[j].args[k].arg_type);
+                fwrite(line, sizeof(char), strlen(line), fid);
+                fwrite("/n", sizeof(char), 1, fid);
+            }
+
+            fwrite("/n", sizeof(char), 1, fid);
+        }
+        fwrite("/n", sizeof(char), 1, fid);
+    }
+    
+}
+
 
 int compareSize(const void* A, const void* B)
 {
@@ -108,10 +279,14 @@ int main(int argc, char* argv[])
     int curr_arg_file = 0;
     
 
-    pg::Vector<pg::Vector<History>> collection;
-    collection.push_back(pg::Vector<History>());
+    pg::Vector<Collection> collection = loadCollection("collections.ini");
     int curr_history = 0;
+    int curr_collection = 0;
     curl_global_init(CURL_GLOBAL_ALL);
+
+    pg::Vector<pg::String> content_type_str;
+    content_type_str.push_back(ContentTypeToString(MULTIPART_FORMDATA));
+    content_type_str.push_back(ContentTypeToString(APPLICATION_JSON));
 
     // Main loop
     while (!glfwWindowShouldClose(window))
@@ -122,8 +297,7 @@ int main(int argc, char* argv[])
         static const char* items[] = {"GET", "POST"};
         static const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
         static int request_type = 0;
-        static int content_type = 0;
-        static pg::String content_type_str;
+        static ContentType content_type = (ContentType)0;
         static pg::Vector<Argument> headers;
         static pg::String result;
         static pg::Vector<Argument> args;
@@ -132,15 +306,12 @@ int main(int argc, char* argv[])
         {
             ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_NoMove);
 
-           
-
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.125);
             if (ImGui::BeginCombo("##request_type", items[request_type])) {
                 for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
                     if (ImGui::Selectable(items[n])) {
                         request_type = n;
-                        content_type = 0;
-                        content_type_str = "";
+                        content_type = MULTIPART_FORMDATA;
                     }
                 }
                 ImGui::EndCombo();
@@ -151,11 +322,10 @@ int main(int argc, char* argv[])
                 case 0: break;
                 case 1:
                     ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.25);
-                    if (ImGui::BeginCombo("##content_type", ct_post[content_type])) {
+                    if (ImGui::BeginCombo("##content_type", ct_post[(int)content_type])) {
                         for (int n = 0; n < IM_ARRAYSIZE(ct_post); n++) {
                             if (ImGui::Selectable(ct_post[n])) {
-                                content_type = n;
-                                content_type_str = ct_post[n];
+                                content_type = (ContentType)n;
                             }
                         }
                         ImGui::EndCombo();
@@ -168,7 +338,7 @@ int main(int argc, char* argv[])
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
             if (ImGui::InputText("URL", buf, IM_ARRAYSIZE(buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
-                processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
+                processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
             }
 
 
@@ -178,12 +348,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##header arg delete%d", i);
@@ -212,12 +382,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.6);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_history], args, headers, request_type, content_type, content_type_str, input_json, thread_status);
+                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 if (args[i].arg_type == 1) {
                     sprintf(arg_name, "File##arg name%d", i);
@@ -274,8 +444,8 @@ int main(int argc, char* argv[])
             }
 
             ImGui::Text("Result");
-            if (collection[curr_history].size() > 0)
-                ImGui::InputTextMultiline("##source", &collection[curr_history].back().result[0], collection[curr_history].back().result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            if (collection[curr_collection].hist.size() > 0)
+                ImGui::InputTextMultiline("##source", &collection[curr_collection].hist.back().result[0], collection[curr_collection].hist.back().result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
             else {
                 char blank[] = "";
                 ImGui::InputTextMultiline("##source", blank, 0, ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
@@ -344,18 +514,17 @@ int main(int argc, char* argv[])
         if (show_history) {
             ImGui::Begin("History", &show_history);
             static int selected  = -1;
-            for (int i=0; i<collection[curr_history].size(); i++) {
+            for (int i=0; i<collection[curr_collection].hist.size(); i++) {
                 char select_name[2048];
-                sprintf(select_name, "(%s) %s##%d", RequestTypeToString(collection[curr_history][i].req_type).buf_, collection[curr_history][i].url.buf_, i);
+                sprintf(select_name, "(%s) %s##%d", content_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
                 if (ImGui::Selectable(select_name, selected==i)) {
                     selected = i;
-                    request_type = collection[curr_history][i].req_type;
-                    content_type = collection[curr_history][i].content_type;
-                    content_type_str = collection[curr_history][i].content_type_str;
-                    headers = collection[curr_history][i].headers;
-                    result = collection[curr_history][i].result;
-                    args = collection[curr_history][i].args;
-                    input_json = collection[curr_history][i].input_json;
+                    request_type = collection[curr_collection].hist[i].req_type;
+                    content_type = collection[curr_collection].hist[i].content_type;
+                    headers = collection[curr_collection].hist[i].headers;
+                    result = collection[curr_collection].hist[i].result;
+                    args = collection[curr_collection].hist[i].args;
+                    input_json = collection[curr_collection].hist[i].input_json;
                     
                 }
             }
