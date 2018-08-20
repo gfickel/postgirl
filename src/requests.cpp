@@ -57,7 +57,6 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
                       pg::String contentType, pg::String& thread_result, int& response_code) 
 { 
-    
     CURLcode res;
     CURL* curl;
     curl = curl_easy_init();
@@ -97,7 +96,6 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
         }
     }
     
-    
     curl_easy_setopt(curl, CURLOPT_URL, url.buf_);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
@@ -125,7 +123,6 @@ void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url,
                       pg::String contentType, const pg::String& inputJson, 
                       pg::String& thread_result, int& response_code) 
 { 
-
     CURL *curl;
     CURLcode res;
     MemoryStruct chunk;
@@ -216,4 +213,13 @@ pg::String RequestTypeToString(RequestType req) {
         case PUT:       return pg::String("PUT");
     }
     return pg::String("UNDEFINED");
+}
+
+
+pg::String ContentTypeToString(ContentType ct) {
+    switch(ct) {
+        case MULTIPART_FORMDATA:   return pg::String("multipart/form-data");
+        case APPLICATION_JSON:     return pg::String("application/json");
+    }
+    return pg::String("<NONE>");
 }

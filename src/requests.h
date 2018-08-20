@@ -20,6 +20,10 @@ typedef enum RequestType {
     PUT     = 4
 } RequestType;
 
+typedef enum ContentType {
+    MULTIPART_FORMDATA  = 0,
+    APPLICATION_JSON    = 1
+} ContentType;
 
 typedef struct Argument { 
     pg::String name;
@@ -35,12 +39,16 @@ typedef struct History {
     pg::String input_json;
     pg::String result;
     RequestType req_type;
-    int content_type;
-    pg::String content_type_str;
-    pg::String collection;
-    struct tm proc_date;
+    ContentType content_type;
+    pg::String process_time;
     int response_code;
 } History;
+
+
+typedef struct Collection {
+    pg::String name;
+    pg::Vector<History> hist;
+} Collection;
 
 
 void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
@@ -53,3 +61,5 @@ void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url,
                       pg::String& thread_result, int& response_code) ;
 
 pg::String RequestTypeToString(RequestType req);
+
+pg::String ContentTypeToString(ContentType ct);
