@@ -47,13 +47,12 @@ void processRequest(std::thread& thread, const char* buf,
             thread = std::thread(threadRequestGet, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, std::ref(history.back().result), std::ref(history.back().response_code));
             break;
         case POST:
-            thread = std::thread(threadRequestPost, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, history.back().input_json, std::ref(history.back().result), std::ref(hist.response_code));
+            thread = std::thread(threadRequestPost, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, history.back().input_json, std::ref(history.back().result), std::ref(history.back().response_code));
             break;
         default:
             history.back().result = pg::String("Invalid request type selected!");
             thread_status = FINISHED;
     }
-
 }
 
 

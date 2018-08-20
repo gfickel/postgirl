@@ -14,10 +14,8 @@ void readStringFromIni(char* buffer, FILE* fid) {
         printf("Error reading string from .ini file: %d\n", ret);
         exit(1);
     }
-    if (str_len > 0)
-        fread(buffer, sizeof(char), str_len, fid);
-    else
-        buffer[0] = '\0';
+    fread(buffer, sizeof(char), str_len, fid);
+    buffer[str_len] = '\0';
 }
 
 void printArg(const Argument& arg) {
