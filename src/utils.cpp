@@ -98,6 +98,8 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
     }
 
     fclose(fid);
+    if (collection_vec.size() < 1)
+        collection_vec.push_back(empty_col);
     return collection_vec;
 }
 
