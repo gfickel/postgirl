@@ -44,7 +44,7 @@ On Mac:
 ```sh
 brew install glfw3
 brew install curl --with-openssl
-``
+```
 
 All of those dependencies are available on Windows but I don't have the time to check how to install them, unfortunately :(.
 
