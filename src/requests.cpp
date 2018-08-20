@@ -55,11 +55,14 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 
 void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, pg::String& thread_result, int& response_code) 
+                      ContentType contentTypeEnum, pg::String& thread_result, int& response_code) 
 { 
     CURLcode res;
     CURL* curl;
     curl = curl_easy_init();
+
+
+    pg::String contentType = ContentTypeToString(contentTypeEnum); 
 
     MemoryStruct chunk;
     curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
@@ -120,12 +123,14 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
 
 void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, const pg::String& inputJson, 
+                      ContentType contentTypeEnum, const pg::String& inputJson, 
                       pg::String& thread_result, int& response_code) 
 { 
     CURL *curl;
     CURLcode res;
     MemoryStruct chunk;
+    
+    pg::String contentType = ContentTypeToString(contentTypeEnum); 
 
     if (args.size() == 0 && inputJson.length() == 0) {
         thread_result = "No argument passed for POST";

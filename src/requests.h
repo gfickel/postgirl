@@ -53,11 +53,11 @@ typedef struct Collection {
 
 void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, pg::String& thread_result, int& response_code);
+                      ContentType contentType, pg::String& thread_result, int& response_code);
 
 void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 
                       pg::Vector<Argument> args, pg::Vector<Argument> headers, 
-                      pg::String contentType, const pg::String& inputJson, 
+                      ContentType contentType, const pg::String& inputJson, 
                       pg::String& thread_result, int& response_code) ;
 
 pg::String RequestTypeToString(RequestType req);

@@ -31,6 +31,6 @@ if(APPLE)
     set(FRAMEWORK_IOKIT "-framework IOKit" CACHE STRING "IOKit framework for OSX")
 
     target_link_libraries(postgirl ${OPENGL_LIBRARIES} ${FRAMEWORK_COCOA} ${FRAMEWORK_COREVIDEO} ${FRAMEWORK_IOKIT} ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})
-elseif(LINUX)
+elseif(UNIX)
     target_link_libraries(postgirl GL ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})
 endif()
