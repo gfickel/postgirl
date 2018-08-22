@@ -137,7 +137,7 @@ int main(int argc, char* argv[])
         static pg::String input_json(1024*32); // 32KB static string should be reasonable
 
         {
-            ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_NoMove);
+            ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_MenuBar );
 
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.125);
             if (ImGui::BeginCombo("##request_type", items[request_type])) {
@@ -351,6 +351,7 @@ int main(int argc, char* argv[])
                 for (int i=0; i<collection.size(); i++) {
                     if (ImGui::BeginMenu(collection[i].name.buf_)) {
                         curr_collection = i;
+                        ImGui::EndMenu();
                     }
                 }
                 ImGui::EndMenuBar();
