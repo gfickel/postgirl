@@ -30,6 +30,7 @@ void printHistory(const History& hist) {
         printArg(hist.args[i]);
     for (int i=0; i<hist.headers.size(); i++)
         printArg(hist.headers[i]);
+    printf("----------------------------------------------------------\n\n");
 }
 
 History readHistory(FILE* fid) {
@@ -60,6 +61,7 @@ History readHistory(FILE* fid) {
         readIntFromIni(arg.arg_type, fid);
         hist.headers.push_back(arg);
     }
+    fgetc(fid);
     return hist;
 }
 
@@ -94,7 +96,6 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
             collection_vec.push_back(col);
         }
     }
-
     fclose(fid);
     if (collection_vec.size() < 1)
         collection_vec.push_back(empty_col);
