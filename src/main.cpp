@@ -346,7 +346,15 @@ int main(int argc, char* argv[])
         }
 
         if (show_history) {
-            ImGui::Begin("History", &show_history);
+            ImGui::Begin("History", &show_history, ImGuiWindowFlags_MenuBar);
+            if (ImGui::BeginMenuBar()) {
+                for (int i=0; i<collection.size(); i++) {
+                    if (ImGui::BeginMenu(collection[i].name.buf_)) {
+                        curr_collection = i;
+                    }
+                }
+                ImGui::EndMenuBar();
+            }
             static int selected  = -1;
             for (int i=0; i<collection[curr_collection].hist.size(); i++) {
                 char select_name[2048];
