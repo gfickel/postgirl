@@ -1,7 +1,6 @@
 #include "utils.h"
 
 void readIntFromIni(int& res, FILE* fid) {
-    int str_len;
     if (fscanf(fid, "\%*s %d", &res) != 1) {
         printf("Error reading int from .ini file\n");
         exit(1);
@@ -77,10 +76,8 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
         return collection_vec;
     }
     
-    long bytes_read = 0;
     char line[32*1024];
 
-    int ret=0, str_len=0;
     while (fgets(line, sizeof(line), fid)) {
         if (line[0] == '\n') continue;
         if (line[0] == '[') { // Collections
