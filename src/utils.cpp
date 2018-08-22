@@ -69,6 +69,7 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
 {
     pg::Vector<Collection> collection_vec;
     Collection empty_col;
+    empty_col.name.set("default");
     FILE* fid = fopen(filename.buf_, "r");
     if (fid == NULL) 
     {
@@ -109,10 +110,8 @@ void saveCollection(const pg::Vector<Collection>& collection, const pg::String& 
     
     static char line[32*1028];
     for (int i=0; i<collection.size(); i++) {
-        if (i == 0) {
-            sprintf(line, "[%s]\n", "Collection");
-            fwrite(line, sizeof(char), strlen(line), fid);
-        }
+        sprintf(line, "[%s]\n", "Collection");
+        fwrite(line, sizeof(char), strlen(line), fid);
         sprintf(line, "Name (%d): %s\n", collection[i].name.length(), collection[i].name.buf_);
         fwrite(line, sizeof(char), strlen(line), fid);
         sprintf(line, "Size: %d\n\n", collection[i].hist.size());
