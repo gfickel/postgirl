@@ -32,5 +32,5 @@ if(APPLE)
 
     target_link_libraries(postgirl ${OPENGL_LIBRARIES} ${FRAMEWORK_COCOA} ${FRAMEWORK_COREVIDEO} ${FRAMEWORK_IOKIT} ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})
 elseif(UNIX)
-    target_link_libraries(postgirl GL ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})
+    target_link_libraries(postgirl pthread GL ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})
 endif()
