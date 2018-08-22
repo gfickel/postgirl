@@ -164,4 +164,5 @@ void saveCollection(const pg::Vector<Collection>& collection, const pg::String& 
             fwrite(line, sizeof(char), strlen(line), fid);
         }
     }
+    fclose(fid);
 }
