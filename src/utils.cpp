@@ -69,6 +69,10 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
     pg::Vector<Collection> collection_vec;
     Collection empty_col;
     empty_col.name.set("default");
+    // This is not working... major reworking incoming
+    collection_vec.push_back(empty_col);
+    return collection_vec;
+
     FILE* fid = fopen(filename.buf_, "r");
     if (fid == NULL) 
     {
