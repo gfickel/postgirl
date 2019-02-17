@@ -266,7 +266,7 @@ int main(int argc, char* argv[])
             if (thread_status == FINISHED) {
                 thread.join();
                 thread_status = IDLE;
-                saveCollection(collection, "collections.ini");
+                saveCollection(collection, "collections.json");
             }
             
             if (request_type == 1 && content_type == 1) {
