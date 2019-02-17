@@ -139,6 +139,7 @@ int main(int argc, char* argv[])
         static pg::String result;
         static pg::Vector<Argument> args;
         static pg::String input_json(1024*32); // 32KB static string should be reasonable
+        static int selected  = 0;
 
         {
             ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_MenuBar );
@@ -282,8 +283,12 @@ int main(int argc, char* argv[])
             }
 
             ImGui::Text("Result");
-            if (collection[curr_collection].hist.size() > 0)
-                ImGui::InputTextMultiline("##source", &collection[curr_collection].hist.back().result[0], collection[curr_collection].hist.back().result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            if (collection[curr_collection].hist.size() > 0) {
+                if (selected >= collection[curr_collection].hist.size()) {
+                    selected = (int)collection[curr_collection].hist.size()-1;
+                }
+                ImGui::InputTextMultiline("##source", &collection[curr_collection].hist[selected].result[0], collection[curr_collection].hist[selected].result.capacity(), ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
+            }
             else {
                 char blank[] = "";
                 ImGui::InputTextMultiline("##source", blank, 0, ImVec2(-1.0f, ImGui::GetContentRegionAvail()[1]), ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_ReadOnly);
@@ -360,7 +365,6 @@ int main(int argc, char* argv[])
                 }
                 ImGui::EndMenuBar();
             }
-            static int selected  = -1;
             for (int i=0; i<collection[curr_collection].hist.size(); i++) {
                 char select_name[2048];
                 sprintf(select_name, "(%s) %s##%d", content_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
@@ -372,7 +376,6 @@ int main(int argc, char* argv[])
                     result = collection[curr_collection].hist[i].result;
                     args = collection[curr_collection].hist[i].args;
                     input_json = collection[curr_collection].hist[i].input_json;
-                    
                 }
             }
             ImGui::End();
