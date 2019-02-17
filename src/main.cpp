@@ -112,7 +112,11 @@ int main(int argc, char* argv[])
     int curr_arg_file = 0;
     
 
-    pg::Vector<Collection> collection = loadCollection("collections.ini");
+    pg::Vector<Collection> collection = loadCollection("collections.json");
+    if (collection.size() == 0) {
+        Collection temp_col;
+        collection.push_back(temp_col);
+    }
     int curr_history = 0;
     int curr_collection = 0;
     curl_global_init(CURL_GLOBAL_ALL);

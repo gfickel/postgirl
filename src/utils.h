@@ -2,6 +2,9 @@
 #include "requests.h"
 #include "pgstring.h"
 #include "pgvector.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 
 void readIntFromIni(int& res, FILE* fid);
