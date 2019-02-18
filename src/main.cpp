@@ -357,7 +357,7 @@ int main(int argc, char* argv[])
         if (show_history) {
             ImGui::Begin("History", &show_history, ImGuiWindowFlags_MenuBar);
             if (ImGui::BeginMenuBar()) {
-                for (int i=0; i<collection.size(); i++) {
+                for (int i=(int)collection.size()-1; i>=0; i--) {
                     if (ImGui::BeginMenu(collection[i].name.buf_)) {
                         curr_collection = i;
                         ImGui::EndMenu();
@@ -365,7 +365,7 @@ int main(int argc, char* argv[])
                 }
                 ImGui::EndMenuBar();
             }
-            for (int i=0; i<collection[curr_collection].hist.size(); i++) {
+            for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
                 char select_name[2048];
                 sprintf(select_name, "(%s) %s##%d", content_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
                 if (ImGui::Selectable(select_name, selected==i)) {
