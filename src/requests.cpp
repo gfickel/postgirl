@@ -125,8 +125,8 @@ void threadRequestGetDelete(std::atomic<ThreadStatus>& thread_status, RequestTyp
 }
 
 
-void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 
-                      pg::Vector<Argument> args, pg::Vector<Argument> headers, 
+void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, RequestType reqType,
+                      pg::String url, pg::Vector<Argument> args, pg::Vector<Argument> headers, 
                       ContentType contentTypeEnum, const pg::String& inputJson, 
                       pg::String& thread_result, int& response_code) 
 { 
@@ -185,7 +185,15 @@ void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url,
             }
         }
         curl_easy_setopt(curl, CURLOPT_URL, url.buf_);
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+
+
+        if (reqType == POST) {
+            curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        } else if (reqType == PATCH) {
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
+        } else {
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+        }
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback);
         curl_easy_setopt(curl, CURLOPT_READDATA, &wt);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);

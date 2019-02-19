@@ -48,7 +48,9 @@ void processRequest(std::thread& thread, const char* buf,
             thread = std::thread(threadRequestGetDelete, std::ref(thread_status), (RequestType)request_type, history.back().url, history.back().args, history.back().headers, contentType, std::ref(history.back().result), std::ref(history.back().response_code));
             break;
         case POST:
-            thread = std::thread(threadRequestPost, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, history.back().input_json, std::ref(history.back().result), std::ref(history.back().response_code));
+        case PATCH:
+        case PUT:
+            thread = std::thread(threadRequestPostPatchPut, std::ref(thread_status), (RequestType)request_type, history.back().url, history.back().args, history.back().headers, contentType, history.back().input_json, std::ref(history.back().result), std::ref(history.back().response_code));
             break;
         default:
             history.back().result = pg::String("Invalid request type selected!");
@@ -102,10 +104,19 @@ int main(int argc, char* argv[])
     pg::Vector<const char**> arg_types;
     const char* post_types[] = {"Text", "File"};
     const char* get_types[] = {"Text"};
+    const char* delete_types[] = {"Text"};
+    const char* patch_types[] = {"Text", "File"};
+    const char* put_types[] = {"Text", "File"};
     arg_types.push_back(get_types);
     arg_types.push_back(post_types);
+    arg_types.push_back(delete_types);
+    arg_types.push_back(patch_types);
+    arg_types.push_back(put_types);
     pg::Vector<int> num_arg_types;
     num_arg_types.push_back(1);
+    num_arg_types.push_back(2);
+    num_arg_types.push_back(1);
+    num_arg_types.push_back(2);
     num_arg_types.push_back(2);
 
     bool picking_file = false;
@@ -132,7 +143,7 @@ int main(int argc, char* argv[])
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-        static const char* items[] = {"GET", "POST", "DELETE"};
+        static const char* items[] = {"GET", "POST", "DELETE", "PATCH", "PUT"};
         static const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
         static int request_type = 0;
         static ContentType content_type = (ContentType)0;
@@ -158,8 +169,11 @@ int main(int argc, char* argv[])
             ImGui::SameLine();
 
             switch (request_type) {
-                case 0: break;
-                case 1:
+                case GET:
+                case DELETE: break;
+                case POST:
+                case PATCH:
+                case PUT:
                     ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.25);
                     if (ImGui::BeginCombo("##content_type", ct_post[(int)content_type])) {
                         for (int n = 0; n < IM_ARRAYSIZE(ct_post); n++) {
@@ -272,7 +286,7 @@ int main(int argc, char* argv[])
                 saveCollection(collection, "collections.json");
             }
             
-            if (request_type == 1 && content_type == 1) {
+            if ((request_type == POST || request_type == PUT || request_type == PATCH) && content_type == 1) {
                 ImGui::Text("Input JSON");
                 rapidjson::Document d;
                 if (d.Parse(input_json.buf_).HasParseError() && input_json.length() > 0) {
