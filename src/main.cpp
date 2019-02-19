@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
 
-        static const char* items[] = {"GET", "POST"};
+        static const char* items[] = {"GET", "POST", "DELETE"};
         static const char* ct_post[] = {"multipart/form-data", "application/json", "<NONE>"};
         static int request_type = 0;
         static ContentType content_type = (ContentType)0;
@@ -369,7 +369,7 @@ int main(int argc, char* argv[])
             }
             for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
                 char select_name[2048];
-                sprintf(select_name, "(%s) %s##%d", content_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
+                sprintf(select_name, "(%s) %s##%d", content_type_str[(int)collection[curr_collection].hist[i].content_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
                 if (ImGui::Selectable(select_name, selected==i)) {
                     selected = i;
                     request_type = collection[curr_collection].hist[i].req_type;
