@@ -1,22 +1,46 @@
 import json
+from pprint import pprint
 
 import flask
 from flask import Flask, request
 
 app = Flask(__name__)
 
+def format_response(request):
+    response = {'json': request.get_json(silent=True),
+                'headers': dict(request.headers),
+                'args': request.args,
+                'files': request.files,
+                'form': request.form
+                }
+    pprint(response)
+    return response
+
 
 @app.route("/test_route", methods=['POST'])
-def process_frapi_event():
-    print("files", request.files)
-    print("form", request.form)
-    print("json", request.get_json(silent=True))
+def process_post():
+    return flask.jsonify(format_response(request))
 
-    curr_json = request.get_json(silent=True)
-    if curr_json is not None:
-        return flask.jsonify(curr_json)
-    else:
-        return '',200
+
+@app.route("/test_route", methods=['GET'])
+def process_get():
+    return flask.jsonify(format_response(request))
+
+
+@app.route("/test_route", methods=['DELETE'])
+def process_delete():
+    return flask.jsonify(format_response(request))
+
+
+@app.route("/test_route", methods=['PATCH'])
+def process_patch():
+    return flask.jsonify(format_response(request))
+
+
+@app.route("/test_route", methods=['PUT'])
+def process_put():
+    return flask.jsonify(format_response(request))
+
 
 @app.route("/version")
 def version():
