@@ -51,8 +51,8 @@ typedef struct Collection {
 } Collection;
 
 
-void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
-                      pg::Vector<Argument> args, pg::Vector<Argument> headers, 
+void threadRequestGetDelete(std::atomic<ThreadStatus>& thread_status, RequestType reqType,  
+                      pg::String url, pg::Vector<Argument> args, pg::Vector<Argument> headers, 
                       ContentType contentType, pg::String& thread_result, int& response_code);
 
 void threadRequestPost(std::atomic<ThreadStatus>& thread_status, pg::String url, 

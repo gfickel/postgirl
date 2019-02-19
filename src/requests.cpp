@@ -53,8 +53,8 @@ WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 
-void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url, 
-                      pg::Vector<Argument> args, pg::Vector<Argument> headers, 
+void threadRequestGetDelete(std::atomic<ThreadStatus>& thread_status, RequestType reqType, pg::String url,
+        pg::Vector<Argument> args, pg::Vector<Argument> headers, 
                       ContentType contentTypeEnum, pg::String& thread_result, int& response_code) 
 { 
     CURLcode res;
@@ -65,7 +65,11 @@ void threadRequestGet(std::atomic<ThreadStatus>& thread_status, pg::String url,
     pg::String contentType = ContentTypeToString(contentTypeEnum); 
 
     MemoryStruct chunk;
-    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+    if (reqType == GET) {
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+    } else {
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+    }
     
     if (args.size() > 0) url.append("?");
     for (int i=0; i<(int)args.size(); i++) {

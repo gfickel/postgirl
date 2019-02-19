@@ -44,7 +44,8 @@ void processRequest(std::thread& thread, const char* buf,
 
     switch(request_type) { 
         case GET:
-            thread = std::thread(threadRequestGet, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, std::ref(history.back().result), std::ref(history.back().response_code));
+        case DELETE:
+            thread = std::thread(threadRequestGetDelete, std::ref(thread_status), (RequestType)request_type, history.back().url, history.back().args, history.back().headers, contentType, std::ref(history.back().result), std::ref(history.back().response_code));
             break;
         case POST:
             thread = std::thread(threadRequestPost, std::ref(thread_status), history.back().url, history.back().args, history.back().headers, contentType, history.back().input_json, std::ref(history.back().result), std::ref(history.back().response_code));
