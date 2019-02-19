@@ -267,6 +267,7 @@ int main(int argc, char* argv[])
             if (thread_status == FINISHED) {
                 thread.join();
                 thread_status = IDLE;
+                selected = (int)collection[curr_collection].hist.size()-1;
                 saveCollection(collection, "collections.json");
             }
             
