@@ -152,6 +152,7 @@ int main(int argc, char* argv[])
         static pg::Vector<Argument> args;
         static pg::String input_json(1024*32); // 32KB static string should be reasonable
         static int selected  = 0;
+        static char url_buf[4098] = "http://localhost:5000/test_route";
 
         {
             ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_MenuBar );
@@ -187,11 +188,10 @@ int main(int argc, char* argv[])
                     break;
             }
             
-            static char buf[4098] = "http://localhost:5000/test_route";
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
-            if (ImGui::InputText("URL", buf, IM_ARRAYSIZE(buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
+            if (ImGui::InputText("URL", url_buf, IM_ARRAYSIZE(url_buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
-                processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
+                processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
             }
 
 
@@ -201,12 +201,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
+                    processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
+                    processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 char btn_name[32];
                 sprintf(btn_name, "Delete##header arg delete%d", i);
@@ -235,12 +235,12 @@ int main(int argc, char* argv[])
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
+                    processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.6);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
-                    processRequest(thread, buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
+                    processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
                 if (args[i].arg_type == 1) {
                     sprintf(arg_name, "File##arg name%d", i);
@@ -392,6 +392,7 @@ int main(int argc, char* argv[])
                     result = collection[curr_collection].hist[i].result;
                     args = collection[curr_collection].hist[i].args;
                     input_json = collection[curr_collection].hist[i].input_json;
+                    strcpy(url_buf, collection[curr_collection].hist[i].url.buf_);
                 }
             }
             ImGui::End();
