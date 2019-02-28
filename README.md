@@ -17,8 +17,9 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 ## Future Features
 * ~~Add a JSON input field that says if it is a valid JSON on the fly~~
 * ~~Add support to POST~~
+* ~~Add support to DELETE, PUT, PATCH~~
+* ~~Save and show the user history~~
 * Add support to multipart/form-data
-* Save and show the user history
 * Add a search function
 * Add multiple collections
 * Add request templates
