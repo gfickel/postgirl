@@ -13,6 +13,9 @@
 #include "utils.h"
 
 
+// Defines the current selected request. It may the current one or
+// another, from the history list.
+int selected  = 0;
 
 void processRequest(std::thread& thread, const char* buf, 
                     pg::Vector<History>& history, const pg::Vector<Argument>& args, 
@@ -39,6 +42,8 @@ void processRequest(std::thread& thread, const char* buf,
     else
         hist.process_time = pg::String("");
     history.push_back(hist);
+    // points to the current (and unfinished) request
+    selected = (int)history.size()-1;
     
     thread_status = RUNNING;
 
@@ -151,7 +156,6 @@ int main(int argc, char* argv[])
         static pg::String result;
         static pg::Vector<Argument> args;
         static pg::String input_json(1024*32); // 32KB static string should be reasonable
-        static int selected  = 0;
         static char url_buf[4098] = "http://localhost:5000/test_route";
 
         {
