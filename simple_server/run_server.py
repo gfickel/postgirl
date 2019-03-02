@@ -1,16 +1,31 @@
 import json
+import os
 from pprint import pprint
 
 import flask
 from flask import Flask, request
+from werkzeug.utils import secure_filename
+
+
+os.makedirs("data", exist_ok=True)
 
 app = Flask(__name__)
 
 def format_response(request):
+    files_list = []
+    if request.files is not None:
+        for f in request.files:
+            files_list.append(f)
+            file_obj = request.files[f]
+
+            filename = secure_filename(file_obj.filename)
+            file_obj.save(os.path.join('data', filename))
+
+
     response = {'json': request.get_json(silent=True),
                 'headers': dict(request.headers),
                 'args': request.args,
-                'files': request.files,
+                'files': files_list,
                 'form': request.form
                 }
     pprint(response)
