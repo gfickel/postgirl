@@ -143,13 +143,10 @@ void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, Request
     }
 
     struct WriteThis wt;
-    if (args.size() == 0) {
+    if (contentTypeEnum == APPLICATION_JSON) {
         wt.readptr = inputJson.buf_;
         wt.sizeleft = inputJson.length();
-    } else {
-        wt.readptr = args[0].value.buf_;
-        wt.sizeleft = args[0].value.length();
-    }
+    } 
 
     /* In windows, this will init the winsock stuff */ 
     res = curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -160,9 +157,45 @@ void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, Request
         return;
     }
 
+    curl_mime *form = NULL;
+    curl_mimepart *field = NULL;
+
     /* get a curl handle */ 
     curl = curl_easy_init();
     if(curl) {
+        pg::Vector<int> files_idx;
+        pg::Vector<int> args_idx;
+        for (int i=0; i<args.size(); i++) {
+            if (args[i].arg_type == 1) {
+                files_idx.push_back(i);
+            } else {
+                args_idx.push_back(i);
+            }
+        }
+
+        for (int i=0; i<files_idx.size(); i++) {
+            if (form == NULL) {
+                /* Create the form */ 
+                form = curl_mime_init(curl);
+            }
+         
+            /* Fill in the file upload field */ 
+            field = curl_mime_addpart(form);
+            curl_mime_name(field, args[files_idx[i]].name.buf_);
+            curl_mime_filedata(field, args[files_idx[i]].value.buf_);
+        }
+
+        if (args_idx.size() > 0) url.append("?");
+        for (int i=0; i<args_idx.size(); i++) {
+            int curr_idx = args_idx[i];
+            char* escaped_name = curl_easy_escape(curl , args[curr_idx].name.buf_, args[curr_idx].name.length());
+            url.append(escaped_name);
+            url.append("=");
+            char* escaped_value = curl_easy_escape(curl , args[curr_idx].value.buf_, args[curr_idx].value.length());
+            url.append(escaped_value);
+            if (i < (int)args_idx.size()-1) url.append("&");
+        }
+     
         struct curl_slist *header_chunk = NULL;
         if (contentType.length() > 0) {
             pg::String aux("Content-Type: ");
@@ -199,6 +232,9 @@ void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, Request
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+        if (form != NULL) {
+            curl_easy_setopt(curl, CURLOPT_MIMEPOST, form);
+        }
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)wt.sizeleft);
 
         res = curl_easy_perform(curl);
@@ -215,6 +251,7 @@ void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, Request
         }
         /* always cleanup */ 
         curl_easy_cleanup(curl);
+        if (form != NULL) curl_mime_free(form);
     }
     thread_status = FINISHED;
 }
