@@ -1,5 +1,5 @@
 # Postgirl
-Postgirl is supposed to be a bloat-free, small and somewhat limited program to do HTTP requests. The idea is to be a simple yet reliable tool to do some quick tests, but being very good at it. It is not in a very useful state right now (it is only working for GETs), but this should change really soon.
+Postgirl is supposed to be a bloat-free, small and somewhat limited program to do HTTP requests. The idea is to be a simple yet reliable tool to do some quick tests, but being very good at it. It still has some rough edges, but you can already do the most common requests (GET, POST, PATCH, PUT and DELETE).
 
 This project came from my insatisfaction with [Postman](https://www.getpostman.com/) lately. The native app takes several seconds to boot, sometimes crashes and if you let it open for a long time it may consume an insane amount of RAM (it topped at around 1GB on my Desktop once). Therefore Postgirl, a much simpler alternative.
 
@@ -15,14 +15,15 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 * Simple code without excessive abstractions
 
 ## Future Features
-* ~~Add a JSON input field that says if it is a valid JSON on the fly~~
-* ~~Add support to POST~~
-* ~~Add support to DELETE, PUT, PATCH~~
+* ~~A JSON input field that says if it is a valid JSON on the fly~~
+* ~~Support to POST~~
+* ~~Support to DELETE, PUT, PATCH~~
 * ~~Save and show the user history~~
-* Add support to multipart/form-data
-* Add a search function
-* Add multiple collections
-* Add request templates
+* ~~Support to multipart/form-data~~
+* ~~File selector~~
+* A search function
+* Multiple collections
+* Request templates
 
 ## Future Code Changes
 * ~~Substitute the stl vector for a modified ImGui::Vector implementation~~
@@ -32,7 +33,7 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 ## Used libs
 I'm using the excelent [Dear ImGui](https://github.com/ocornut/imgui) for GUI, created using the [Immediate Mode Gui](https://www.youtube.com/watch?v=Z1qyvQsjK5Y) architecture. It is a very easy intuitive way to create GUIs, so I suggest that you take a look if you don't know about it. I've also decided to use OpenGL3 as the backend since it should be easy to link and compile in any platform, but I really know much about the other alternatives.
 
-For the HTTP requests I'm using [libcurl](https://curl.haxx.se/libcurl/), but it was not so easy to incorporate it's code in here so yourself should install it on your system (check Dependencies).
+For the HTTP requests I'm using [libcurl](https://curl.haxx.se/libcurl/), but it was not so easy to incorporate it's code in here so you should install it on your system (check Dependencies).
 
 
 ## Dependencies
@@ -52,6 +53,7 @@ All of those dependencies are available on Windows but I don't have the time to 
 ## Build
 ```sh
 mkdir build
+cd build
 cmake -DCMAKE_BUILD_TYPE=RELEASE ../
 make
 ```
