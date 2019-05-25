@@ -23,9 +23,8 @@ void processRequest(std::thread& thread, const char* buf,
                     ContentType contentType, const pg::String& inputJson,
                     std::atomic<ThreadStatus>& thread_status)
 {
-    if (thread_status == RUNNING)
+    if (thread_status != IDLE)
         return;
-
     History hist;
     hist.url = pg::String(buf);
     hist.args = args;
