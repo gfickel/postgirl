@@ -30,6 +30,8 @@ void processRequest(std::thread& thread, const char* buf,
     hist.args = args;
     hist.headers = headers;
     hist.input_json = inputJson;
+    if (request_type == GET || request_type == DELETE || contentType != APPLICATION_JSON)
+        hist.input_json = pg::String("");
     hist.result = pg::String("Processing");
     hist.content_type = contentType;
     hist.req_type = (RequestType)request_type;
