@@ -299,6 +299,7 @@ int main(int argc, char* argv[])
             if ((request_type == POST || request_type == PUT || request_type == PATCH) && content_type == 1) {
                 ImGui::Text("Input JSON");
                 rapidjson::Document d;
+                // TODO: only check for JSON errors on changes instead of every frame
                 if (d.Parse(input_json.buf_).HasParseError() && input_json.length() > 0) {
                     ImGui::SameLine();
                     ImGui::Text("Problems with JSON");
@@ -370,7 +371,6 @@ int main(int argc, char* argv[])
                         filename.append("/");
                         filename.append(curr_files[i]);
                         args[curr_arg_file].value = filename;
-                        printf("args[%d].value = %s\n", curr_arg_file, filename.buf_);
                     }                    
 
                     picking_file = false;
