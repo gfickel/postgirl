@@ -28,6 +28,7 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 ## Future Code Changes
 * ~~Substitute the stl vector for a modified ImGui::Vector implementation~~
 * ~~Substitute the stdl string for a lighteight version closer to char*~~
+* Load collection/history values from disk on the fly to avoid loading it all to RAM, perhaps using a cache of some sort.
 * Find a small multi platform threading library (perhaps extend [stb.h](https://github.com/nothings/stb/) to use Posix on Linux/Mac). Then we will get rid of stl thread, hopefully gain some compilation time and drop the C++11 requirement :)
 
 ## Used libs
