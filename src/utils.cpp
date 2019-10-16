@@ -100,7 +100,7 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
             hist.req_type = (RequestType)histories[j]["request_type"].GetInt();
             hist.content_type = (ContentType)histories[j]["content_type"].GetInt();
             hist.process_time = pg::String(histories[j]["process_time"].GetString());
-            hist.result = pg::String(histories[j]["result"].GetString());
+            hist.result = prettify(pg::String(histories[j]["result"].GetString()));
             hist.response_code = histories[j]["response_code"].GetInt();
             
             const rapidjson::Value& headers = histories[j]["headers"];

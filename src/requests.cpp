@@ -118,7 +118,7 @@ void threadRequestGetDelete(std::atomic<ThreadStatus>& thread_status, RequestTyp
         if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
     } else {
         thread_result = pg::String("All ok");
-        if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
+        if(chunk.size > 0) thread_result = prettify(chunk.memory); 
     }
     thread_status = FINISHED;
     curl_easy_cleanup(curl);
@@ -244,10 +244,10 @@ void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, Request
 
         if(res != CURLE_OK) {
             thread_result = pg::String(curl_easy_strerror(res));
-            if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
+            if(chunk.size > 0) thread_result = prettify(chunk.memory); 
         } else {
             thread_result = pg::String("All ok");
-            if(chunk.size > 0) thread_result = pg::String(chunk.memory); 
+            if(chunk.size > 0) thread_result = prettify(chunk.memory); 
         }
         /* always cleanup */ 
         curl_easy_cleanup(curl);
@@ -277,3 +277,17 @@ pg::String ContentTypeToString(ContentType ct) {
     }
     return pg::String("<NONE>");
 }
+
+
+pg::String prettify(pg::String input) {
+    rapidjson::Document document;
+    if (document.Parse(input.buf_).HasParseError()) {
+        return input;
+    }
+    rapidjson::StringBuffer sb;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(sb);
+    document.Accept(writer);    // Accept() traverses the DOM and generates Handler events.
+    return pg::String(sb.GetString());
+}
+
+

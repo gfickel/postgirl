@@ -4,6 +4,9 @@
 #include <curl/curl.h>
 #include "pgstring.h"
 #include "pgvector.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 
 
 typedef enum ThreadStatus {
@@ -63,3 +66,6 @@ void threadRequestPostPatchPut(std::atomic<ThreadStatus>& thread_status, Request
 pg::String RequestTypeToString(RequestType req);
 
 pg::String ContentTypeToString(ContentType ct);
+
+pg::String prettify(pg::String input);
+
