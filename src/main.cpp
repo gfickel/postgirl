@@ -120,12 +120,12 @@ int main(int argc, char* argv[])
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_EnablePowerSavingMode;
-    ImGui::StyleColorsLight();
+    ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Our state
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ImVec4(0.1f, 0.1f, 0.1f, 1.00f);
 
     std::atomic<ThreadStatus> thread_status(IDLE); // syncronize thread to call join only when it finishes
     std::thread thread;
@@ -194,8 +194,46 @@ int main(int argc, char* argv[])
         static pg::String input_json(1024*3200); // 32KB static string should be reasonable
         static char url_buf[4098] = "http://localhost:5000/test_route";
 
+        ImGui::SetNextWindowPos(ImVec2(0,0));
+        ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x, io.DisplaySize.y));
+        ImGui::Begin("Postgirl", NULL, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_HorizontalScrollbar);
+
         {
-            ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_MenuBar );
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+            ImGui::Text("HISTORY");
+            ImGui::BeginChild("History", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.2f, 0), false, window_flags);
+            if (ImGui::BeginMenuBar()) {
+                for (int i=(int)collection.size()-1; i>=0; i--) {
+                    if (ImGui::BeginMenu(collection[i].name.buf_)) {
+                        curr_collection = i;
+                        ImGui::EndMenu();
+                    }
+                }
+                ImGui::EndMenuBar();
+            }
+            for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
+                char select_name[2048];
+                sprintf(select_name, "(%s) %s##%d", request_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
+                if (ImGui::Selectable(select_name, selected==i)) {
+                    selected = i;
+                    request_type = collection[curr_collection].hist[i].req_type;
+                    content_type = collection[curr_collection].hist[i].content_type;
+                    headers = collection[curr_collection].hist[i].headers;
+                    result = collection[curr_collection].hist[i].result;
+                    args = collection[curr_collection].hist[i].args;
+                    input_json = collection[curr_collection].hist[i].input_json;
+                    strcpy(url_buf, collection[curr_collection].hist[i].url.buf_);
+                }
+            }
+            ImGui::EndChild();
+        }
+
+        ImGui::SameLine();
+
+        {
+            // ImGui::Begin("Postgirl");//, NULL, ImGuiWindowFlags_MenuBar );
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+            ImGui::BeginChild("MainMenu", ImVec2(0, 0), false, window_flags);
 
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.125);
             if (ImGui::BeginCombo("##request_type", items[request_type])) {
@@ -229,7 +267,7 @@ int main(int argc, char* argv[])
             }
             
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
-            if (ImGui::InputText("URL", url_buf, IM_ARRAYSIZE(url_buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
+            if (ImGui::InputText("##URL", url_buf, IM_ARRAYSIZE(url_buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
                 processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
             }
@@ -407,37 +445,10 @@ int main(int argc, char* argv[])
                     curr_arg_file = -1;
                 }
             }
-            ImGui::End();
+            ImGui::EndChild();
         }
 
-        if (show_history) {
-            ImGui::Begin("History", &show_history, ImGuiWindowFlags_MenuBar);
-            if (ImGui::BeginMenuBar()) {
-                for (int i=(int)collection.size()-1; i>=0; i--) {
-                    if (ImGui::BeginMenu(collection[i].name.buf_)) {
-                        curr_collection = i;
-                        ImGui::EndMenu();
-                    }
-                }
-                ImGui::EndMenuBar();
-            }
-            for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
-                char select_name[2048];
-                sprintf(select_name, "(%s) %s##%d", request_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
-                if (ImGui::Selectable(select_name, selected==i)) {
-                    selected = i;
-                    request_type = collection[curr_collection].hist[i].req_type;
-                    content_type = collection[curr_collection].hist[i].content_type;
-                    headers = collection[curr_collection].hist[i].headers;
-                    result = collection[curr_collection].hist[i].result;
-                    args = collection[curr_collection].hist[i].args;
-                    input_json = collection[curr_collection].hist[i].input_json;
-                    strcpy(url_buf, collection[curr_collection].hist[i].url.buf_);
-                }
-            }
-            ImGui::End();
-        }
-
+        ImGui::End();
         // Rendering
         ImGui::Render();
         int display_w, display_h;
