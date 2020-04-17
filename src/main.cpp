@@ -203,9 +203,9 @@ int main(int argc, char* argv[])
 
         {
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-            ImGui::Text("History Search");
             ImGui::BeginChild("History", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.2f, 0), false, window_flags);
 
+            ImGui::Text("History Search");
             if (ImGui::BeginMenuBar()) {
                 for (int i=(int)collection.size()-1; i>=0; i--) {
                     if (ImGui::BeginMenu(collection[i].name.buf_)) {
@@ -254,6 +254,7 @@ int main(int argc, char* argv[])
             }
             ImGui::SameLine(); Help("Live Search can be slow depending on your history size!");
 
+            ImGui::BeginChild("HistoryList", ImVec2(ImGui::GetWindowContentRegionWidth(), 0), false, window_flags);
             char *fb = hist_search.buf_, *fe = hist_search.end();
             for (int sr=0; sr<search_result.size(); sr++) {
                 int i = search_result[sr];
@@ -270,6 +271,7 @@ int main(int argc, char* argv[])
                     strcpy(url_buf, collection[curr_collection].hist[i].url.buf_);
                 }
             }
+            ImGui::EndChild();
             ImGui::EndChild();
         }
 
