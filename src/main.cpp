@@ -1,6 +1,7 @@
 #include <thread>
 #include <atomic>
 #include <stdio.h>
+#include <ctype.h> // toupper
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -12,6 +13,7 @@
 #include "dirent_portable.h"
 #include "requests.h"
 #include "utils.h"
+
 
 
 // Defines the current selected request. It may the current one or
@@ -162,6 +164,7 @@ int main(int argc, char* argv[])
     }
     int curr_history = 0;
     int curr_collection = 0;
+    bool first_run = true; // used to init stuff on first run
     curl_global_init(CURL_GLOBAL_ALL);
 
     pg::Vector<pg::String> content_type_str;
@@ -200,8 +203,9 @@ int main(int argc, char* argv[])
 
         {
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-            ImGui::Text("HISTORY");
+            ImGui::Text("History Search");
             ImGui::BeginChild("History", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.2f, 0), false, window_flags);
+
             if (ImGui::BeginMenuBar()) {
                 for (int i=(int)collection.size()-1; i>=0; i--) {
                     if (ImGui::BeginMenu(collection[i].name.buf_)) {
@@ -211,7 +215,47 @@ int main(int argc, char* argv[])
                 }
                 ImGui::EndMenuBar();
             }
-            for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
+
+            static pg::String hist_search;
+            static pg::Vector<int> search_result;
+            static bool live_search = true;
+            static ImGuiInputTextFlags search_flags = 0; 
+
+            ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.95);
+            if (ImGui::InputText("##Search", hist_search.buf_, hist_search.capacity(), search_flags) || first_run)
+            {
+                search_result.clear();
+                if (hist_search.length() > 0) {
+                    char *fb = hist_search.buf_, *fe = hist_search.end();
+                    for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
+                        if (hist_search.length() == 0 || (hist_search.length() > 0 &&
+                            (Stristr(collection[curr_collection].hist[i].url.buf_, collection[curr_collection].hist[i].url.end(), fb, fe) ||
+                            Stristr(collection[curr_collection].hist[i].input_json.buf_, collection[curr_collection].hist[i].input_json.end(), fb, fe) ||
+                            Stristr(collection[curr_collection].hist[i].result.buf_, collection[curr_collection].hist[i].result.end(), fb, fe))))
+                        {
+                            search_result.push_back(i);
+                        }
+                    }
+                }
+                else {
+                    for (int i=0; i<collection[curr_collection].hist.size(); i++) {
+                        search_result.push_back(i);
+                    }
+                }
+            }
+            if (ImGui::Checkbox("Live Search", &live_search)) {
+                if (search_flags) {
+                    search_flags = 0;
+                }
+                else {
+                    search_flags = ImGuiInputTextFlags_EnterReturnsTrue;
+                }
+            }
+            ImGui::SameLine(); Help("Live Search can be slow depending on your history size!");
+
+            char *fb = hist_search.buf_, *fe = hist_search.end();
+            for (int sr=0; sr<search_result.size(); sr++) {
+                int i = search_result[sr];
                 char select_name[2048];
                 sprintf(select_name, "(%s) %s##%d", request_type_str[(int)collection[curr_collection].hist[i].req_type].buf_, collection[curr_collection].hist[i].url.buf_, i);
                 if (ImGui::Selectable(select_name, selected==i)) {
@@ -448,6 +492,7 @@ int main(int argc, char* argv[])
             ImGui::EndChild();
         }
 
+        first_run = false;
         ImGui::End();
         // Rendering
         ImGui::Render();

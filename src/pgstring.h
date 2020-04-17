@@ -91,6 +91,11 @@ public:
         buf_ = (char*)malloc((size_t)capacity_ * sizeof(char));
     }
 
+    inline char* end()
+    {
+        return buf_+strlen(buf_);
+    }
+
     inline int              capacity() const            { return capacity_; }
     inline char&            operator[](int i)           { assert(i < capacity_); return buf_[i]; }
     inline const char&      operator[](int i) const     { assert(i < capacity_); return buf_[i]; }

@@ -222,3 +222,39 @@ void saveCollection(const pg::Vector<Collection>& collection, const pg::String& 
         fclose(fp);
     }
 }
+
+const char* Stristr(const char* haystack, const char* haystack_end, const char* needle, const char* needle_end)
+{
+    if (!needle_end)
+        needle_end = needle + strlen(needle);
+
+    const char un0 = (char)toupper(*needle);
+    while ((!haystack_end && *haystack) || (haystack_end && haystack < haystack_end))
+    {
+        if (toupper(*haystack) == un0)
+        {
+            const char* b = needle + 1;
+            for (const char* a = haystack + 1; b < needle_end; a++, b++)
+                if (toupper(*a) != toupper(*b))
+                    break;
+            if (b == needle_end)
+                return haystack;
+        }
+        haystack++;
+    }
+    return NULL;
+}
+
+void Help(const char* desc) {
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
+
