@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
     }
     int curr_history = 0;
     int curr_collection = 0;
-    bool first_run = true; // used to init stuff on first run
+    bool update_hist_search = true; // used to init stuff on first run
     curl_global_init(CURL_GLOBAL_ALL);
 
     pg::Vector<pg::String> content_type_str;
@@ -222,8 +222,9 @@ int main(int argc, char* argv[])
             static ImGuiInputTextFlags search_flags = 0; 
 
             ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.95);
-            if (ImGui::InputText("##Search", hist_search.buf_, hist_search.capacity(), search_flags) || first_run)
+            if (ImGui::InputText("##Search", hist_search.buf_, hist_search.capacity(), search_flags) || update_hist_search)
             {
+                update_hist_search = false;
                 search_result.clear();
                 if (hist_search.length() > 0) {
                     char *fb = hist_search.buf_, *fe = hist_search.end();
@@ -238,7 +239,7 @@ int main(int argc, char* argv[])
                     }
                 }
                 else {
-                    for (int i=0; i<collection[curr_collection].hist.size(); i++) {
+                    for (int i=(int)collection[curr_collection].hist.size()-1; i>=0; i--) {
                         search_result.push_back(i);
                     }
                 }
@@ -406,6 +407,7 @@ int main(int argc, char* argv[])
                 thread_status = IDLE;
                 selected = (int)collection[curr_collection].hist.size()-1;
                 saveCollection(collection, "collections.json");
+                update_hist_search = true;
             }
             
             if ((request_type == POST || request_type == PUT || request_type == PATCH) && content_type == 1) {
@@ -492,7 +494,6 @@ int main(int argc, char* argv[])
             ImGui::EndChild();
         }
 
-        first_run = false;
         ImGui::End();
         // Rendering
         ImGui::Render();
