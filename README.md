@@ -21,7 +21,7 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 * ~~Save and show the user history~~
 * ~~Support to multipart/form-data~~
 * ~~File selector~~
-* A search function
+* ~~A search function~~
 * Multiple collections
 * Request templates
 
