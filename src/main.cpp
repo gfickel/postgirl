@@ -2,6 +2,7 @@
 #include <atomic>
 #include <stdio.h>
 #include <ctype.h> // toupper
+#include <sys/time.h>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -13,6 +14,13 @@
 #include "dirent_portable.h"
 #include "requests.h"
 #include "utils.h"
+
+#ifdef _WINDOWS
+#include <windows.h>
+#else
+#include <unistd.h>
+#define Sleep(x) usleep((x)*1000)
+#endif
 
 
 
@@ -121,7 +129,6 @@ int main(int argc, char* argv[])
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_EnablePowerSavingMode;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -179,7 +186,12 @@ int main(int argc, char* argv[])
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
-        ImGui_ImplGlfw_WaitForEvent();
+        long start, end;
+        struct timeval timecheck;
+
+        gettimeofday(&timecheck, NULL);
+        start = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
         glfwPollEvents();
 
         // Start the Dear ImGui frame
@@ -438,7 +450,7 @@ int main(int argc, char* argv[])
             }
 
 
-            ImGui::End();
+            ImGui::EndChild();
         }
         if (picking_file) {
             ImGui::Begin("File Selector", &picking_file);
@@ -507,6 +519,12 @@ int main(int argc, char* argv[])
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
+        gettimeofday(&timecheck, NULL);
+        end = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        long sleep_time = 1000/60-(end-start);
+        if (sleep_time > 0) {
+            Sleep(sleep_time);
+        }
     }
 
     // Cleanup
