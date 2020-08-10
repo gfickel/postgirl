@@ -9,11 +9,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
 include_directories("third_party/"
 					"third_party/imgui/"
                     "third_party/gl3w/"
+                    "third_party/enkits/"
                     )
 
 file(GLOB all_postgirl_src
     "src/*.cpp"
 	"third_party/imgui/*.cpp"
+	"third_party/enkits/*.cpp"
     "third_party/gl3w/GL/gl3w.c"
 )
 
