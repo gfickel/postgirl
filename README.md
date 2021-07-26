@@ -32,7 +32,7 @@ This is definitely a toy project of mine. I do indeed pretend to use it on a dai
 * Find a small multi platform threading library (perhaps extend [stb.h](https://github.com/nothings/stb/) to use Posix on Linux/Mac). Then we will get rid of stl thread, hopefully gain some compilation time and drop the C++11 requirement :)
 
 ## Used libs
-I'm using the excelent [Dear ImGui](https://github.com/ocornut/imgui) for GUI, created using the [Immediate Mode Gui](https://www.youtube.com/watch?v=Z1qyvQsjK5Y) architecture. It is a very easy intuitive way to create GUIs, so I suggest that you take a look if you don't know about it. To be more specific I'm using the Power Saving mode from this PR: https://github.com/ocornut/imgui/pull/3124 . This saves a lot of CPU (and therefore battery) on my notebook. I've also decided to use OpenGL3 as the backend since it should be easy to link and compile in any platform, but I really don't know much about the other alternatives.
+I'm using the excelent [Dear ImGui](https://github.com/ocornut/imgui) for GUI, created using the [Immediate Mode Gui](https://www.youtube.com/watch?v=Z1qyvQsjK5Y) architecture. It is a very easy intuitive way to create GUIs, so I suggest that you take a look if you don't know about it.I've also decided to use OpenGL3 as the backend since it should be easy to link and compile in any platform, but I really don't know much about the other alternatives.
 
 For the HTTP requests I'm using [libcurl](https://curl.haxx.se/libcurl/), but it was not so easy to incorporate it's code in here so you should install it on your system (check Dependencies).
 
