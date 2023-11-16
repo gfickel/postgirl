@@ -84,7 +84,7 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
     }
     document.Parse(json);
     if (document.HasMember("collections") == false) {
-        delete json;
+        free(json);
         return collection_vec;
     }
 
@@ -127,7 +127,7 @@ pg::Vector<Collection> loadCollection(const pg::String& filename)
         collection_vec.push_back(curr_collection);
     }
 
-    delete json;
+    free(json);
     return collection_vec;
 }
 
