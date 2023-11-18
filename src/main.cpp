@@ -510,7 +510,7 @@ int main(int argc, char* argv[])
                     curr_arg_file = -1;
                 }
             }
-            ImGui::EndChild();
+            ImGui::End();
         }
 
         ImGui::End();
