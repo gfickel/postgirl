@@ -33,12 +33,13 @@ public:
         memcpy(buf_, str, (size_t)size * sizeof(char)); 
     }
 
-    inline String(char* str, int size) {
+    inline String(const char* str, int size) {
         int cap = DEFAULT_STRING_SIZE;
-        if (size > cap) cap = size;
+        if (size + 1 > cap) cap = size + 1;
         capacity_ = cap;
         buf_ = (char*)malloc((size_t)capacity_ * sizeof(char));
         memcpy(buf_, str, (size_t)size * sizeof(char)); 
+        buf_[size] = '\0';
     }
 
     inline ~String()   { if(buf_) free(buf_); }

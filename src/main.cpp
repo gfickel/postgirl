@@ -87,6 +87,11 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
+static inline float GetWindowContentRegionWidth()
+{
+    return ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x; 
+}
+
 int main(int argc, char* argv[])
 {
     glfwSetErrorCallback(glfw_error_callback);
@@ -215,7 +220,7 @@ int main(int argc, char* argv[])
 
         {
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-            ImGui::BeginChild("History", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.2f, 0), false, window_flags);
+            ImGui::BeginChild("History", ImVec2(GetWindowContentRegionWidth() * 0.2f, 0), false, window_flags);
 
             ImGui::Text("History Search");
             if (ImGui::BeginMenuBar()) {
@@ -233,7 +238,7 @@ int main(int argc, char* argv[])
             static bool live_search = true;
             static ImGuiInputTextFlags search_flags = 0; 
 
-            ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.95);
+            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.95);
             if (ImGui::InputText("##Search", hist_search.buf_, hist_search.capacity(), search_flags) || update_hist_search)
             {
                 update_hist_search = false;
@@ -266,7 +271,7 @@ int main(int argc, char* argv[])
             }
             ImGui::SameLine(); Help("Live Search can be slow depending on your history size!");
 
-            ImGui::BeginChild("HistoryList", ImVec2(ImGui::GetWindowContentRegionWidth(), 0), false, window_flags);
+            ImGui::BeginChild("HistoryList", ImVec2(GetWindowContentRegionWidth(), 0), false, window_flags);
             char *fb = hist_search.buf_, *fe = hist_search.end();
             for (int sr=0; sr<search_result.size(); sr++) {
                 int i = search_result[sr];
@@ -294,7 +299,7 @@ int main(int argc, char* argv[])
             ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
             ImGui::BeginChild("MainMenu", ImVec2(0, 0), false, window_flags);
 
-            ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.125);
+            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.125);
             if (ImGui::BeginCombo("##request_type", items[request_type])) {
                 for (int n = 0; n < IM_ARRAYSIZE(items); n++) {
                     if (ImGui::Selectable(items[n])) {
@@ -312,7 +317,7 @@ int main(int argc, char* argv[])
                 case POST:
                 case PATCH:
                 case PUT:
-                    ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.25);
+                    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.25);
                     if (ImGui::BeginCombo("##content_type", ct_post[(int)content_type])) {
                         for (int n = 0; n < IM_ARRAYSIZE(ct_post); n++) {
                             if (ImGui::Selectable(ct_post[n])) {
@@ -325,7 +330,7 @@ int main(int argc, char* argv[])
                     break;
             }
             
-            ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth());
+            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
             if (ImGui::InputText("##URL", url_buf, IM_ARRAYSIZE(url_buf), ImGuiInputTextFlags_EnterReturnsTrue) ) {
                 ImGui::SetKeyboardFocusHere(-1); // Auto focus previous widget
                 processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
@@ -334,13 +339,13 @@ int main(int argc, char* argv[])
 
             static pg::Vector<int> delete_arg_btn;
             for (int i=0; i<(int)headers.size(); i++) {
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.2);
                 char arg_name[32];
                 sprintf(arg_name, "Name##header arg name%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].name[0], headers[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
                     processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.4);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.4);
                 sprintf(arg_name, "Value##header arg value%d", i);
                 if (ImGui::InputText(arg_name, &headers[i].value[0], headers[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
                     processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
@@ -363,18 +368,18 @@ int main(int argc, char* argv[])
             }
 
             for (int i=0; i<(int)args.size(); i++) {
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.2);
                 char combo_name[32];
                 sprintf(combo_name, "##combo arg type%d", i);
                 ImGui::Combo(combo_name, &args[i].arg_type, arg_types[request_type], num_arg_types[request_type]);
                 ImGui::SameLine();
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.2);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.2);
                 char arg_name[32];
                 sprintf(arg_name, "Name##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].name[0], args[i].name.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
                     processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
                 ImGui::SameLine();
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvailWidth()*0.6);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x*0.6);
                 sprintf(arg_name, "Value##arg name%d", i);
                 if (ImGui::InputText(arg_name, &args[i].value[0], args[i].value.capacity(), ImGuiInputTextFlags_EnterReturnsTrue))
                     processRequest(thread, url_buf, collection[curr_collection].hist, args, headers, request_type, content_type, input_json, thread_status);
@@ -505,7 +510,7 @@ int main(int argc, char* argv[])
                     curr_arg_file = -1;
                 }
             }
-            ImGui::EndChild();
+            ImGui::End();
         }
 
         ImGui::End();
