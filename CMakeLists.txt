@@ -34,3 +34,35 @@ if(APPLE)
 elseif(UNIX)
     target_link_libraries(postgirl pthread GL ${GLFW_STATIC_LIBRARIES} ${CURL_LIBRARIES})
 endif()
+
+# ---- Tests ----
+option(BUILD_TESTS "Build unit tests" OFF)
+
+if(BUILD_TESTS)
+    enable_testing()
+
+    add_executable(postgirl_tests
+        tests/test_main.cpp
+        tests/test_pgstring.cpp
+        tests/test_pgvector.cpp
+        tests/test_requests.cpp
+        tests/test_utils.cpp
+        src/utils.cpp
+        src/requests.cpp
+        third_party/imgui/imgui.cpp
+        third_party/imgui/imgui_draw.cpp
+        third_party/imgui/imgui_widgets.cpp
+    )
+
+    target_include_directories(postgirl_tests PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/imgui/
+        ${CMAKE_CURRENT_LIST_DIR}/third_party/catch2/
+        ${CMAKE_CURRENT_LIST_DIR}/src/
+    )
+
+    target_compile_options(postgirl_tests PRIVATE -std=c++11 -Wall)
+    target_link_libraries(postgirl_tests ${CURL_LIBRARIES})
+
+    add_test(NAME postgirl_tests COMMAND postgirl_tests)
+endif()

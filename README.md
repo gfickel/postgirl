@@ -60,3 +60,11 @@ make
 ```
 
 The binary will be on postgirl/bin folder.
+
+## Tests
+```sh
+cd build
+cmake -DBUILD_TESTS=ON ..
+make postgirl_tests
+./bin/postgirl_tests
+```
